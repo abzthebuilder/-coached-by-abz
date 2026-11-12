@@ -1,0 +1,322 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  COACH
+  CLIENT
+}
+
+enum CheckInFrequency {
+  WEEKLY
+  MONTHLY
+}
+
+enum Goal {
+  FAT_LOSS
+  MUSCLE_GAIN
+  RECOMP
+  STRENGTH
+}
+
+enum TokenKind {
+  INVITE
+  RESET
+}
+
+enum TaskFrequency {
+  ONCE
+  DAILY
+  WEEKLY
+}
+
+enum PhotoPose {
+  FRONT
+  SIDE
+  BACK
+  OTHER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         Role
+  timezone     String   @default("Europe/London")
+  createdAt    DateTime @default(now())
+
+  sessions       Session[]
+  clientProfile  ClientProfile? @relation("ClientUser")
+  coachedClients ClientProfile[] @relation("CoachClients")
+  templates      WorkoutTemplate[]
+  tokens         AuthToken[]      @relation("TokenCreator")
+  replies        CheckInReply[]
+}
+
+model Session {
+  id        String   @id // sha256 of the cookie token
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model AuthToken {
+  id         String    @id @default(cuid())
+  tokenHash  String    @unique
+  kind       TokenKind
+  email      String
+  name       String
+  coachId    String
+  coach      User      @relation("TokenCreator", fields: [coachId], references: [id], onDelete: Cascade)
+  userId     String? // set for RESET tokens
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+model SiteSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model ClientProfile {
+  id                String           @id @default(cuid())
+  userId            String           @unique
+  user              User             @relation("ClientUser", fields: [userId], references: [id], onDelete: Cascade)
+  coachId           String
+  coach             User             @relation("CoachClients", fields: [coachId], references: [id])
+  goal              Goal             @default(RECOMP)
+  startDay          String // YYYY-MM-DD
+  checkInFrequency  CheckInFrequency @default(WEEKLY)
+  checkInWeekday    Int              @default(0) // 0 = Sunday … 6 = Saturday
+  checkInMonthDay   Int              @default(1) // 1-28
+  nutritionNotes    String           @default("")
+  coachNotes        String           @default("") // private to coach
+  active            Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+
+  targets      NutritionTarget[]
+  plans        TrainingPlan[]
+  workoutLogs  WorkoutLog[]
+  dailyLogs    DailyLog[]
+  checkIns     CheckIn[]
+  measurements Measurement[]
+  photos       ProgressPhoto[]
+  tasks        Task[]
+
+  @@index([coachId])
+}
+
+/// Target history: the row with the latest effectiveDay <= a given day applies to that day.
+model NutritionTarget {
+  id           String        @id @default(cuid())
+  clientId     String
+  client       ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  calories     Int
+  proteinG     Int
+  carbsG       Int
+  fatG         Int
+  stepGoal     Int
+  effectiveDay String // YYYY-MM-DD
+  createdAt    DateTime      @default(now())
+
+  @@index([clientId, effectiveDay])
+}
+
+model WorkoutTemplate {
+  id        String             @id @default(cuid())
+  coachId   String
+  coach     User               @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  name      String
+  notes     String             @default("")
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  exercises TemplateExercise[]
+}
+
+model TemplateExercise {
+  id         String          @id @default(cuid())
+  templateId String
+  template   WorkoutTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  order      Int
+  name       String
+  sets       Int
+  reps       String
+  notes      String          @default("")
+}
+
+model TrainingPlan {
+  id             String        @id @default(cuid())
+  clientId       String
+  client         ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name           String
+  notes          String        @default("")
+  workoutsPerWeek Int          @default(3)
+  active         Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  workouts       PlanWorkout[]
+
+  @@index([clientId, active])
+}
+
+model PlanWorkout {
+  id        String         @id @default(cuid())
+  planId    String
+  plan      TrainingPlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  order     Int
+  name      String
+  notes     String         @default("")
+  exercises PlanExercise[]
+  logs      WorkoutLog[]
+}
+
+model PlanExercise {
+  id            String      @id @default(cuid())
+  planWorkoutId String
+  planWorkout   PlanWorkout @relation(fields: [planWorkoutId], references: [id], onDelete: Cascade)
+  order         Int
+  name          String
+  sets          Int
+  reps          String
+  notes         String      @default("")
+}
+
+model WorkoutLog {
+  id            String        @id @default(cuid())
+  clientId      String
+  client        ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  planWorkoutId String?
+  planWorkout   PlanWorkout?  @relation(fields: [planWorkoutId], references: [id], onDelete: SetNull)
+  name          String
+  day           String // YYYY-MM-DD
+  notes         String        @default("")
+  createdAt     DateTime      @default(now())
+  sets          SetLog[]
+
+  @@index([clientId, day])
+}
+
+model SetLog {
+  id           String     @id @default(cuid())
+  workoutLogId String
+  workoutLog   WorkoutLog @relation(fields: [workoutLogId], references: [id], onDelete: Cascade)
+  exerciseName String
+  exerciseKey  String // normalised lower-case name, used to group lift history
+  setNumber    Int
+  weightKg     Float
+  reps         Int
+
+  @@index([exerciseKey])
+}
+
+/// One row per client per day. Null fields mean "not logged" and render as gaps.
+model DailyLog {
+  id        String        @id @default(cuid())
+  clientId  String
+  client    ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  day       String // YYYY-MM-DD
+  weightKg  Float?
+  calories  Int?
+  proteinG  Int?
+  carbsG    Int?
+  fatG      Int?
+  steps     Int?
+  updatedAt DateTime      @updatedAt
+
+  @@unique([clientId, day])
+}
+
+model CheckIn {
+  id              String           @id @default(cuid())
+  clientId        String
+  client          ClientProfile    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  type            CheckInFrequency
+  day             String // YYYY-MM-DD submitted (client local)
+  bodyWeightKg    Float?
+  sleepHours      Float?
+  sleepQuality    Int // 1-5
+  energy          Int // 1-5
+  trainingRating  Int // 1-5
+  trainingNotes   String           @default("")
+  nutritionRating Int // 1-5
+  nutritionNotes  String           @default("")
+  wins            String           @default("")
+  struggles       String           @default("")
+  questions       String           @default("")
+  createdAt       DateTime         @default(now())
+  replies         CheckInReply[]
+
+  @@index([clientId, createdAt])
+}
+
+model CheckInReply {
+  id        String   @id @default(cuid())
+  checkInId String
+  checkIn   CheckIn  @relation(fields: [checkInId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime @default(now())
+}
+
+model Measurement {
+  id       String        @id @default(cuid())
+  clientId String
+  client   ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  day      String
+  chestCm  Float?
+  waistCm  Float?
+  hipsCm   Float?
+  armCm    Float?
+  thighCm  Float?
+  neckCm   Float?
+  notes    String        @default("")
+  createdAt DateTime     @default(now())
+
+  @@index([clientId, day])
+}
+
+model ProgressPhoto {
+  id         String        @id @default(cuid())
+  clientId   String
+  client     ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  day        String
+  pose       PhotoPose
+  storageKey String        @unique
+  mimeType   String
+  createdAt  DateTime      @default(now())
+
+  @@index([clientId, day])
+}
+
+model Task {
+  id          String           @id @default(cuid())
+  clientId    String
+  client      ClientProfile    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title       String
+  notes       String           @default("")
+  frequency   TaskFrequency    @default(ONCE)
+  dueDay      String?
+  active      Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  completions TaskCompletion[]
+}
+
+model TaskCompletion {
+  id     String @id @default(cuid())
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  day    String
+
+  @@unique([taskId, day])
+}
