@@ -1,9 +1,10 @@
 // Demo/test data: one coach, two clients with ~95 days of realistic logs.
 // Never run this against production. It wipes the demo accounts it creates.
-import { PrismaClient } from "@prisma/client";
+import "dotenv/config";
+import { createPrismaClient } from "../src/lib/prisma";
 import bcrypt from "bcryptjs";
 
-const db = new PrismaClient();
+const db = createPrismaClient();
 const TZ = "Europe/London";
 const today = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
 const add = (d: string, n: number) => {

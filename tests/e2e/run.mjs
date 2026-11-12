@@ -11,10 +11,12 @@ let pw;
 try { pw = require("playwright"); } catch { pw = require(path.join(process.env.NODE_PATH || "/opt/node22/lib/node_modules", "playwright")); }
 const { chromium, devices } = pw;
 const { PrismaClient } = require(path.resolve("node_modules/@prisma/client"));
+const { PrismaPg } = require(path.resolve("node_modules/@prisma/adapter-pg"));
+require(path.resolve("node_modules/dotenv")).config();
 
 const base = process.env.BASE_URL || "http://localhost:3000";
 const run = Date.now().toString(36);
-const db = new PrismaClient();
+const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
 const results = [];
 const step = async (name, fn) => {
   try { await fn(); results.push(["PASS", name]); console.log("✓", name); }
