@@ -1,7 +1,7 @@
 "use client";
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import type { FormState } from "./form";
-import { FormMessage, SubmitButton } from "./form";
+import { FormMessage, PendingProvider, SubmitButton, useKeepAction } from "./form";
 import { Field } from "./ui";
 
 export function CopyLink({ link, name }: { link: string; name?: string }) {
@@ -40,13 +40,15 @@ export function LinkActionForm({
   submitLabel: string;
   name?: string;
 }) {
-  const [state, formAction] = useActionState(action, undefined);
+  const { state, onSubmit, pending } = useKeepAction(action);
   return (
-    <form action={formAction} className="space-y-3">
-      {children}
-      <SubmitButton className="w-full">{submitLabel}</SubmitButton>
-      <FormMessage state={state} />
-      {state?.link && <CopyLink link={state.link} name={name} />}
+    <form onSubmit={onSubmit} className="space-y-3">
+      <PendingProvider pending={pending}>
+        {children}
+        <SubmitButton className="w-full">{submitLabel}</SubmitButton>
+        <FormMessage state={state} />
+        {state?.link && <CopyLink link={state.link} name={name} />}
+      </PendingProvider>
     </form>
   );
 }

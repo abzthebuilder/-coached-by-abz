@@ -6,7 +6,7 @@ import { requireClient } from "@/lib/auth";
 import { todayIn, startOfWeek } from "@/lib/dates";
 import { fail, InputError, logDay, num, rating, text } from "@/lib/parse";
 import { normaliseExercise } from "@/lib/metrics";
-import { deleteObject, putObject, sniffImage } from "@/lib/storage";
+import { deleteObject, putObject, sniffImage, storageProblem } from "@/lib/storage";
 import type { FormState } from "@/components/form";
 import { z } from "zod";
 
@@ -193,6 +193,8 @@ const MAX_PHOTO = 10 * 1024 * 1024;
 export async function uploadPhotoAction(_: FormState, fd: FormData): Promise<FormState> {
   const { user, profile } = await requireClient();
   try {
+    const sp = storageProblem();
+    if (sp) throw new InputError(sp);
     const day = logDay(fd, todayIn(user.timezone));
     const pose = String(fd.get("pose") ?? "FRONT");
     if (!POSES.includes(pose as (typeof POSES)[number])) throw new InputError("Choose a pose.");

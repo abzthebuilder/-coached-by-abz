@@ -243,7 +243,7 @@ try {
   const emails = { contains: `${run}@test.coachedbyabz.com` };
   const photos = await db.progressPhoto.findMany({ where: { client: { user: { email: emails } } } });
   const fs = require("node:fs");
-  for (const ph of photos) fs.rmSync(path.resolve(process.env.STORAGE_DIR || "storage", ph.storageKey), { force: true });
+  for (const ph of photos) fs.rmSync(path.resolve(process.env.STORAGE_DIR || (process.env.RAILWAY_VOLUME_MOUNT_PATH ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, "photos") : "storage"), ph.storageKey), { force: true });
   await db.user.deleteMany({ where: { email: emails, role: "CLIENT" } });
   await db.user.deleteMany({ where: { email: emails } });
   await db.$disconnect();

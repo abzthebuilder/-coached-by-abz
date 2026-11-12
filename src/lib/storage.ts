@@ -7,7 +7,19 @@ import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } fro
 // which checks the viewer is the client or their coach.
 
 const driver = process.env.STORAGE_DRIVER === "s3" ? "s3" : "local";
-const localDir = path.resolve(process.env.STORAGE_DIR || "./storage");
+// On Railway, a volume's mount path is exposed as RAILWAY_VOLUME_MOUNT_PATH; photos go in a folder on it.
+const localDir = path.resolve(
+  process.env.STORAGE_DIR ||
+    (process.env.RAILWAY_VOLUME_MOUNT_PATH ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, "photos") : "./storage"),
+);
+
+/** In production, local storage without a persistent disk would lose photos on every deploy. Refuse instead. */
+export function storageProblem(): string | null {
+  if (driver === "s3") return process.env.S3_BUCKET ? null : "Photo storage isn't configured (S3_BUCKET missing).";
+  if (process.env.NODE_ENV === "production" && !process.env.STORAGE_DIR && !process.env.RAILWAY_VOLUME_MOUNT_PATH)
+    return "Photo storage isn't set up yet. Ask your coach to attach a volume.";
+  return null;
+}
 
 let s3: S3Client | null = null;
 function s3Client() {

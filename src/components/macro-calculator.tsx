@@ -1,8 +1,8 @@
 "use client";
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { calculateMacros } from "@/lib/macros";
 import { saveTargetsAction } from "@/app/actions/coach";
-import { FormMessage, SubmitButton } from "./form";
+import { FormMessage, PendingProvider, SubmitButton, useKeepAction } from "./form";
 import { Button, Field, cx } from "./ui";
 
 type T = { calories: number; proteinG: number; carbsG: number; fatG: number; stepGoal: number } | null;
@@ -15,7 +15,7 @@ export function MacroCalculator({ clientId, current, today }: { clientId: string
   const [steps, setSteps] = useState(String(current?.stepGoal ?? "8000"));
   const [from, setFrom] = useState(today);
   const [reviewing, setReviewing] = useState(false);
-  const [state, action] = useActionState(saveTargetsAction, undefined);
+  const { state, onSubmit, pending } = useKeepAction(saveTargetsAction);
 
   const r = calculateMacros({ calories: Number(calories), proteinG: Number(protein), fatG: Number(fat) });
   const ready = calories !== "" && protein !== "" && fat !== "" && steps !== "" && r.errors.length === 0;
@@ -77,7 +77,8 @@ export function MacroCalculator({ clientId, current, today }: { clientId: string
           Review targets
         </Button>
       ) : (
-        <form action={action} className="space-y-3 rounded-xl border border-line p-4">
+        <form onSubmit={onSubmit} className="space-y-3 rounded-xl border border-line p-4">
+          <PendingProvider pending={pending}>
           <h3 className="font-display text-xl uppercase">Review before saving</h3>
           <table className="w-full text-sm">
             <thead>
@@ -110,6 +111,7 @@ export function MacroCalculator({ clientId, current, today }: { clientId: string
             <Button type="button" variant="ghost" onClick={() => setReviewing(false)}>Edit</Button>
             <SubmitButton>Save to profile</SubmitButton>
           </div>
+          </PendingProvider>
         </form>
       )}
     </div>

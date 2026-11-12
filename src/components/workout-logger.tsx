@@ -1,8 +1,8 @@
 "use client";
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { logWorkoutAction } from "@/app/actions/client";
-import { FormMessage, SubmitButton } from "./form";
+import { FormMessage, PendingProvider, SubmitButton, useKeepAction } from "./form";
 import { Button, Field } from "./ui";
 
 type Last = { day: string; sets: { weightKg: number; reps: number }[] } | undefined;
@@ -26,7 +26,7 @@ export function WorkoutLogger({
   today: string;
 }) {
   const router = useRouter();
-  const [state, action] = useActionState(logWorkoutAction, undefined);
+  const { state, onSubmit, pending } = useKeepAction(logWorkoutAction);
   const [items, setItems] = useState<Ex[]>(() =>
     exercises.map((e) => ({ ...e, rows: Array.from({ length: Math.max(1, e.sets) }, () => ({ weight: "", reps: "" })) })),
   );
@@ -62,7 +62,8 @@ export function WorkoutLogger({
   );
 
   return (
-    <form action={action} className="space-y-4">
+    <form onSubmit={onSubmit} className="space-y-4">
+      <PendingProvider pending={pending}>
       <input type="hidden" name="planWorkoutId" value={planWorkoutId ?? ""} />
       <input type="hidden" name="sets" value={payload} />
       {!planWorkoutId && (
@@ -170,6 +171,7 @@ export function WorkoutLogger({
           Finish &amp; save workout
         </SubmitButton>
       </div>
+      </PendingProvider>
     </form>
   );
 }

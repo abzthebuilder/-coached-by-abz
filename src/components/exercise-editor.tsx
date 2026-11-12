@@ -1,7 +1,7 @@
 "use client";
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import type { FormState } from "./form";
-import { FormMessage, SubmitButton } from "./form";
+import { FormMessage, PendingProvider, SubmitButton, useKeepAction } from "./form";
 import { Field } from "./ui";
 
 type Ex = { name: string; sets: number; reps: string; notes: string };
@@ -22,7 +22,7 @@ export function ExerciseEditor({
   exercises: Ex[];
   saveLabel?: string;
 }) {
-  const [state, formAction] = useActionState(action, undefined);
+  const { state, onSubmit, pending } = useKeepAction(action);
   const [items, setItems] = useState<Ex[]>(exercises.length ? exercises : [{ name: "", sets: 3, reps: "8-10", notes: "" }]);
   const set = (i: number, p: Partial<Ex>) => setItems((xs) => xs.map((x, j) => (j === i ? { ...x, ...p } : x)));
   const move = (i: number, d: -1 | 1) =>
@@ -34,7 +34,8 @@ export function ExerciseEditor({
       return c;
     });
   return (
-    <form action={formAction} className="space-y-4">
+    <form onSubmit={onSubmit} className="space-y-4">
+      <PendingProvider pending={pending}>
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="exercises" value={JSON.stringify(items.filter((x) => x.name.trim()))} />
       <Field label="Workout name">
@@ -70,6 +71,7 @@ export function ExerciseEditor({
       </button>
       <FormMessage state={state} />
       <SubmitButton className="w-full">{saveLabel}</SubmitButton>
+      </PendingProvider>
     </form>
   );
 }

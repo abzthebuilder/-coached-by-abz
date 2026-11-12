@@ -6,12 +6,19 @@ import { Card, CardTitle, Field, PageHeader } from "@/components/ui";
 
 export const metadata = { title: "Settings" };
 
-export default async function Settings() {
+export default async function Settings({ searchParams }: { searchParams: Promise<{ setup?: string }> }) {
   await requireCoach();
   const links = await getSiteLinks();
+  const sp = await searchParams;
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <PageHeader title="Settings" />
+      {sp.setup && (
+        <div role="status" className="rounded-xl border border-gold/50 bg-gold/10 p-4 text-sm">
+          <strong className="text-gold">Coach account created.</strong> Setup is now closed. Delete the SETUP_TOKEN variable in Railway,
+          then add your Tally and Calendly links below.
+        </div>
+      )}
       <Card>
         <CardTitle eyebrow="Public website" title="Button links" />
         <p className="mb-4 text-sm text-mute">These links power the buttons on the public site. Changes go live straight away.</p>

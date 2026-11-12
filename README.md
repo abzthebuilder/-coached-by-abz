@@ -10,6 +10,8 @@ Built with Next.js (App Router), PostgreSQL through Prisma, and email + password
 
 ## Setup
 
+**Deploying to Railway?** Follow [docs/DEPLOY-RAILWAY.md](docs/DEPLOY-RAILWAY.md). It works entirely from a phone.
+
 ```bash
 npm install
 cp .env.example .env          # set DATABASE_URL etc.

@@ -1,19 +1,20 @@
 "use client";
-import { useActionState, useEffect } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { submitCheckInAction } from "@/app/actions/client";
-import { FormMessage, SubmitButton } from "./form";
+import { FormMessage, PendingProvider, SubmitButton, useKeepAction } from "./form";
 import { Rating } from "./rating";
 import { Card, Field } from "./ui";
 
 export function CheckInForm() {
   const router = useRouter();
-  const [state, action] = useActionState(submitCheckInAction, undefined);
+  const { state, onSubmit, pending } = useKeepAction(submitCheckInAction);
   useEffect(() => {
     if (state?.ok) router.push("/app/check-ins?sent=1");
   }, [state, router]);
   return (
-    <form action={action} className="space-y-4">
+    <form onSubmit={onSubmit} className="space-y-4">
+      <PendingProvider pending={pending}>
       <Card className="space-y-4">
         <h2 className="font-display text-xl uppercase">Body &amp; recovery</h2>
         <div className="grid grid-cols-2 gap-3">
@@ -56,6 +57,7 @@ export function CheckInForm() {
       <SubmitButton pendingText="Sending…" className="w-full">
         Submit Check-in
       </SubmitButton>
+      </PendingProvider>
     </form>
   );
 }
