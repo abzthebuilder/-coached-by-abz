@@ -4,7 +4,7 @@
 
 // Social links shown in the footer. Leave empty to hide.
 export const social = {
-  instagram: "", // handle without the @, e.g. "coachedbyabz"
+  instagram: "abz_thebuilder", // handle without the @; empty hides the link
 };
 
 export type Photo = { file: string; alt: string; position?: string };
