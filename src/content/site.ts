@@ -43,11 +43,11 @@ export const audiences = [
 
 export const story = {
   eyebrow: "My story",
-  title: "Why I coach",
+  title: "Where it started",
   paragraphs: [
-    "I didn't start out knowing what I was doing in the gym. I wasted years on random workouts, copied plans that didn't fit my life, and swung between eating everything and eating nothing. Nothing really changed until I learned to train with structure, eat with a plan and stay consistent when motivation ran out.",
-    "That's what I teach now. Most people don't need more motivation. They need a plan that fits their week, someone to check in with and a clear way to see that it's working.",
-    "Every client gets the same thing from me: honest coaching, a plan built for them, and someone in their corner who notices the small wins as well as the big ones.",
+    "I got into training when I was about 15. I was skinny, I wanted to change my physique, and I wanted to feel more confident in myself. I couldn't afford a gym, so I trained at a calisthenics park instead, even in the rain and the dark.",
+    "My turning point was realising that training was changing more than my body. Showing up and making progress gave me confidence, built my discipline and helped me believe in what I could achieve. I started feeling stronger mentally as well as physically.",
+    "That's what I want to help you with through Coached by ABZ: building a physique you're proud of, while becoming more confident in yourself along the way.",
   ],
   signoff: "ABZ",
 };
@@ -90,8 +90,8 @@ export const steps = [
 ];
 
 export const faqs = [
-  { q: "I'm a complete beginner. Is this for me?", a: "Yes. Plenty of my clients start from zero. Every exercise comes with coaching notes, and we build up at your pace." },
-  { q: "Do I need a gym?", a: "A gym gives you the most options, but plans can be written around home or limited equipment. Tell me what you've got when you apply." },
+  { q: "I'm a complete beginner. Is this for me?", a: "Yes. Every exercise comes with coaching notes, and we build up at your pace." },
+  { q: "Do I need a gym?", a: "A gym gives you the most options, but I started out training in a park, so plans can be written around home, outdoor or limited equipment. Tell me what you've got when you apply." },
   { q: "Will I have to give up foods I enjoy?", a: "No. You get targets, not a banned list. We fit the foods you like into a plan you can keep up." },
   { q: "How do check-ins work?", a: "You fill in a short form in the app every week or month covering weight, sleep, energy, training, nutrition, wins and struggles. I reply personally." },
 ];
