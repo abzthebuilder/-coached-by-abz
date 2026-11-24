@@ -4,16 +4,16 @@
 
 export type Photo = { file: string; alt: string; position?: string };
 
-export const photos: Record<"hero" | "about" | "online" | "pt" | "banner", Photo> = {
+export const photos: Record<"hero" | "about" | "online" | "gym" | "banner", Photo> = {
   hero: { file: "hero.jpg", alt: "ABZ doing cable curls in the gym", position: "50% 40%" },
   about: { file: "about.jpg", alt: "ABZ at 15, skinny and just starting out, next to ABZ today" },
   online: { file: "online.jpg", alt: "ABZ loading a plate in the gym", position: "50% 35%" },
-  pt: { file: "pt.jpg", alt: "ABZ in the gym", position: "50% 15%" },
+  gym: { file: "gym.jpg", alt: "ABZ in the gym", position: "50% 15%" },
   banner: { file: "banner.jpg", alt: "ABZ facing the gym mirror before a session", position: "50% 38%" },
 };
 
 export const hero = {
-  eyebrow: "Online coaching · 1:1 personal training",
+  eyebrow: "Online coaching",
   title: ["Build muscle.", "Lose fat.", "Get stronger."],
   lead:
     "Coaching built around your life, not the other way round. Whether it's your first time in the gym, you're getting back into it, or you've been lifting for years, I'll give you a clear plan, keep you accountable and show you how to keep the results.",
@@ -64,16 +64,6 @@ export const services = {
       "Your plan adjusted as you progress, so you don't stall",
     ],
   },
-  pt: {
-    title: "1:1 Personal Training",
-    tagline: "In the gym together, every rep coached.",
-    points: [
-      "Hands-on coaching on technique, setup and breathing",
-      "Sessions planned around your goal and any injuries",
-      "Pushed hard enough to progress, kept safe enough to keep showing up",
-      "Includes access to the client app to track your training and progress between sessions",
-    ],
-  },
 };
 
 export const expectations = [
@@ -84,8 +74,8 @@ export const expectations = [
 ];
 
 export const steps = [
-  { n: "01", title: "Apply or book", body: "Apply for online coaching, or book a free PT consultation if you'd like to train with me in person." },
-  { n: "02", title: "We talk", body: "We go through your goals, your history, your schedule and anything that's held you back before." },
+  { n: "01", title: "Apply", body: "Fill in a short application telling me about your goals, your training history and your schedule." },
+  { n: "02", title: "We talk", body: "I get back to you personally, and we go through your goals, your history and anything that's held you back before." },
   { n: "03", title: "Get your plan", body: "You get your login, your training plan and your targets. Then we get to work." },
 ];
 

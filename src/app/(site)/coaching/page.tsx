@@ -9,20 +9,17 @@ export default async function Coaching() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
       <div className="eyebrow mb-2">Coaching</div>
-      <h1 className="font-display text-5xl uppercase leading-none">Online coaching &amp; 1:1 PT</h1>
+      <h1 className="font-display text-5xl uppercase leading-none">Online coaching</h1>
       <p className="mt-4 max-w-2xl text-lg text-mute">
-        Both options come with a plan built for you and a coach who keeps you accountable. Choose online coaching if you
-        want to train on your own schedule, or 1:1 sessions if you want me with you on the gym floor.
+        A plan built for you, a coach who keeps you accountable and an app that shows you it&apos;s working. All on your
+        own schedule, wherever you train.
       </p>
 
-      {[
-        { s: services.online, photo: photos.online, cta: { href: links.tallyUrl, label: "Apply for Online Coaching" } },
-        { s: services.pt, photo: photos.pt, cta: { href: links.calendlyUrl, label: "Book a PT Consultation" } },
-      ].map(({ s, photo, cta }, i) => (
+      {[{ s: services.online, photo: photos.gym, cta: { href: links.tallyUrl, label: "Apply for Online Coaching" } }].map(({ s, photo, cta }, i) => (
         <section key={s.title} className={hasPhoto(photo) ? "mt-12 grid gap-6 md:grid-cols-2 md:items-center" : "mt-12 max-w-2xl"}>
           <GymPhoto photo={photo} optional className={i % 2 ? "aspect-[4/3] md:order-2" : "aspect-[4/3]"} />
           <div>
-            <h2 className="font-display text-4xl uppercase">{s.title}</h2>
+            <h2 className="font-display text-4xl uppercase">What you get</h2>
             <p className="mt-1 text-lg text-gold">{s.tagline}</p>
             <ul className="mt-5 space-y-3">
               {s.points.map((p) => (

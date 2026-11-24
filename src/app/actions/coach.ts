@@ -67,14 +67,12 @@ export async function createResetLinkAction(_: FormState, fd: FormData): Promise
 export async function saveSiteLinksAction(_: FormState, fd: FormData): Promise<FormState> {
   await requireCoach();
   const tallyUrl = text(fd, "tallyUrl", 500);
-  const calendlyUrl = text(fd, "calendlyUrl", 500);
-  if (!isSafeHttpUrl(tallyUrl) || !isSafeHttpUrl(calendlyUrl)) return { error: "Both links must start with https://" };
+  if (!isSafeHttpUrl(tallyUrl)) return { error: "The link must start with https://" };
   await db.$transaction([
     db.siteSetting.upsert({ where: { key: "tallyUrl" }, create: { key: "tallyUrl", value: tallyUrl }, update: { value: tallyUrl } }),
-    db.siteSetting.upsert({ where: { key: "calendlyUrl" }, create: { key: "calendlyUrl", value: calendlyUrl }, update: { value: calendlyUrl } }),
   ]);
   revalidatePath("/", "layout");
-  return { ok: true, message: "Links updated on the public site." };
+  return { ok: true, message: "Link updated on the public site." };
 }
 
 // ---------- Templates ----------

@@ -56,7 +56,7 @@ Select **`claude/coached-abz-website-portal-5orr29`**. `main` only contains the 
 13. Paste the setup token from the Passwords app. Enter your name and email. In the password field, accept Safari's **Strong Password** suggestion so it's saved to your iCloud Keychain. Tap **Create coach account**.
 14. You'll land on **Coach → Settings** already logged in. `/setup` now returns "not found" for everyone, even with the token.
 15. Back in Railway: app service → **Variables** → delete **`SETUP_TOKEN`** and apply. Setup is already closed, so this just removes a secret you no longer need.
-16. In **Coach → Settings**, paste your real **Tally** and **Calendly** links.
+16. In **Coach → Settings**, paste your real **Tally** link.
 
 Why this is safe: the token never appears in a URL or a log, it's compared in constant time, wrong attempts are rate-limited, and the account is only created if no coach exists yet. That check happens inside a database transaction, so two people can't race to create it.
 

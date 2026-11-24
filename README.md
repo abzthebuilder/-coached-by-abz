@@ -2,7 +2,7 @@
 
 The public website and private coaching portal for Coached by ABZ.
 
-- **Public site** (`/`, `/coaching`, `/about`, `/get-started`): services, coaching story, what to expect and how to get started. It has three buttons: Apply for Online Coaching (Tally), Book a PT Consultation (Calendly) and Client Login. There's no pricing on the site.
+- **Public site** (`/`, `/coaching`, `/about`, `/get-started`): services, coaching story, what to expect and how to get started. It has two buttons: Apply for Online Coaching (Tally) and Client Login. There's no pricing on the site.
 - **Client portal** (`/app`): Today, Training, Nutrition & steps, Progress and Check-ins, with bottom navigation on phones.
 - **Coach dashboard** (`/coach`): roster with check-in status, invites, a check-in inbox, workout templates, and each client's progress next to their latest check-in. Also plans, a macro calculator, tasks, logs, photos and settings.
 
@@ -20,7 +20,7 @@ npm run create-coach -- you@example.com "ABZ" 'a-long-password'
 npm run build && npm start
 ```
 
-Then log in at `/login` as the coach, go to **Settings** and paste your real **Tally** and **Calendly** links. They're stored in the database and go live straight away. `TALLY_URL` / `CALENDLY_URL` in `.env` are only used as fallbacks.
+Then log in at `/login` as the coach, go to **Settings** and paste your real **Tally** link. It's stored in the database and goes live straight away. `TALLY_URL` in `.env` is only used as a fallback.
 
 ### Your gym photos
 
@@ -29,12 +29,12 @@ Drop your own photos into `public/images/` using these file names (JPG):
 | File | Where it shows |
 | --- | --- |
 | `hero.jpg` | Home page hero (portrait works best) |
-| `about.jpg` | Coaching story (home + About) |
-| `online.jpg` | Online Coaching card |
-| `pt.jpg` | 1:1 Personal Training card |
-| `gym-1.jpg`, `gym-2.jpg`, `gym-3.jpg` | Square photo strip on the home page |
+| `about.jpg` | Coaching story (home + About), shown square |
+| `online.jpg` | Online Coaching section on the home page |
+| `gym.jpg` | Coaching page |
+| `banner.jpg` | Wide photo above "How to get started" and on the Get Started page |
 
-If a photo is missing, the site shows a branded black-and-gold panel in its place. All public wording is in `src/content/site.ts`, so you can make the story and copy your own.
+If the hero or story photo is missing, the site shows a branded black-and-gold panel in its place; other photo spots are simply hidden. All public wording is in `src/content/site.ts`, so you can make the story and copy your own.
 
 ### Photo storage
 

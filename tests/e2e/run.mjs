@@ -40,14 +40,15 @@ const coach = await coachCtx.newPage();
 const clients = { A: { name: `Alpha Test ${run}`, email: `alpha.${run}@test.coachedbyabz.com`, password: "alpha-password-123" }, B: { name: `Bravo Test ${run}`, email: `bravo.${run}@test.coachedbyabz.com`, password: "bravo-password-123" } };
 
 try {
-  await step("Public site shows the three buttons", async () => {
+  await step("Public site shows Apply + Client Login, with no pricing or personal training", async () => {
     const p = await coachCtx.newPage();
     await p.goto("/");
-    for (const n of ["Apply for Online Coaching", "Book a PT Consultation", "Client Login"]) assert.ok(await p.getByRole("link", { name: n }).first().isVisible(), n);
+    for (const n of ["Apply for Online Coaching", "Client Login"]) assert.ok(await p.getByRole("link", { name: n }).first().isVisible(), n);
     for (const u of ["/", "/coaching", "/about", "/get-started"]) {
       await p.goto(u);
       const text = await p.locator("body").innerText();
       assert.ok(!/£|€|\$\d|per month|per week|pricing|package/i.test(text), `no pricing on ${u}`);
+      assert.ok(!/personal training|PT consultation|calendly/i.test(text), `no personal training on ${u}`);
     }
     await p.close();
   });

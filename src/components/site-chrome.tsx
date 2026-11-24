@@ -41,9 +41,6 @@ export function CtaButtons({ links, className, stacked }: { links: SiteLinks; cl
       <ButtonLink href={links.tallyUrl} external variant="gold">
         Apply for Online Coaching
       </ButtonLink>
-      <ButtonLink href={links.calendlyUrl} external variant="outline">
-        Book a PT Consultation
-      </ButtonLink>
       <ButtonLink href="/login" variant="ghost">
         Client Login
       </ButtonLink>
@@ -58,7 +55,7 @@ export function SiteFooter({ links }: { links: SiteLinks }) {
         <div>
           <Logo className="text-2xl" />
           <p className="mt-3 max-w-sm text-sm text-mute">
-            Online coaching and 1:1 personal training. Build muscle, lose fat, get stronger and feel more confident.
+            Online coaching to help you build muscle, lose fat, get stronger and feel more confident.
           </p>
         </div>
         <CtaButtons links={links} stacked />

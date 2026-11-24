@@ -1,19 +1,17 @@
 import { db } from "./db";
 
-export type SiteLinks = { tallyUrl: string; calendlyUrl: string };
+export type SiteLinks = { tallyUrl: string };
 
 const DEFAULTS: SiteLinks = {
   tallyUrl: process.env.TALLY_URL || "https://tally.so",
-  calendlyUrl: process.env.CALENDLY_URL || "https://calendly.com",
 };
 
 export async function getSiteLinks(): Promise<SiteLinks> {
   try {
-    const rows = await db.siteSetting.findMany({ where: { key: { in: ["tallyUrl", "calendlyUrl"] } } });
+    const rows = await db.siteSetting.findMany({ where: { key: "tallyUrl" } });
     const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
     return {
       tallyUrl: map.tallyUrl || DEFAULTS.tallyUrl,
-      calendlyUrl: map.calendlyUrl || DEFAULTS.calendlyUrl,
     };
   } catch {
     return DEFAULTS;

@@ -69,40 +69,32 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Services */}
+      {/* Online coaching */}
       <section className="mx-auto max-w-6xl px-4 py-14">
         <div className="eyebrow mb-2">How I can help</div>
-        <h2 className="font-display text-4xl uppercase leading-none">Two ways to work with me</h2>
-        <div className="mt-8 grid gap-4 md:grid-cols-2">
-          {[
-            { s: services.online, href: links.tallyUrl, cta: "Apply for Online Coaching", photo: photos.online },
-            { s: services.pt, href: links.calendlyUrl, cta: "Book a PT Consultation", photo: photos.pt },
-          ].map(({ s, href, cta, photo }) => (
-            <article key={s.title} className="flex flex-col overflow-hidden rounded-2xl border border-line/70 bg-char">
-              <GymPhoto photo={photo} optional className="aspect-[16/9] rounded-none" />
-              <div className="flex flex-1 flex-col p-5">
-                <h3 className="font-display text-3xl uppercase">{s.title}</h3>
-                <p className="mt-1 text-gold">{s.tagline}</p>
-                <ul className="mt-4 flex-1 space-y-2.5">
-                  {s.points.map((p) => (
-                    <li key={p} className="flex gap-3 text-mute">
-                      <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
-                      {p}
-                    </li>
-                  ))}
-                </ul>
-                <a
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-6 inline-flex min-h-12 items-center justify-center rounded-xl bg-gold px-5 font-semibold text-ink hover:bg-gold-bright"
-                >
-                  {cta}
-                </a>
-              </div>
-            </article>
-          ))}
-        </div>
+        <h2 className="font-display text-4xl uppercase leading-none">{services.online.title}</h2>
+        <p className="mt-2 text-lg text-gold">{services.online.tagline}</p>
+        <article className="mt-8 grid overflow-hidden rounded-2xl border border-line/70 bg-char md:grid-cols-2">
+          <GymPhoto photo={photos.online} optional className="aspect-[4/3] rounded-none md:aspect-auto md:min-h-[420px]" />
+          <div className="flex flex-col p-5 md:p-8">
+            <ul className="flex-1 space-y-3">
+              {services.online.points.map((p) => (
+                <li key={p} className="flex gap-3 text-mute">
+                  <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+                  {p}
+                </li>
+              ))}
+            </ul>
+            <a
+              href={links.tallyUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-6 inline-flex min-h-12 items-center justify-center rounded-xl bg-gold px-5 font-semibold text-ink hover:bg-gold-bright"
+            >
+              Apply for Online Coaching
+            </a>
+          </div>
+        </article>
       </section>
 
       {/* What to expect */}

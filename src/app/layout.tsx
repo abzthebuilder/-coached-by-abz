@@ -6,9 +6,9 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "sw
 const oswald = Oswald({ subsets: ["latin"], variable: "--font-oswald", weight: ["400", "500", "600", "700"], display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "Coached by ABZ | Online coaching and personal training", template: "%s | Coached by ABZ" },
+  title: { default: "Coached by ABZ | Online coaching", template: "%s | Coached by ABZ" },
   description:
-    "Build muscle, lose fat, get stronger and feel more confident. Online coaching and 1:1 personal training with ABZ.",
+    "Build muscle, lose fat, get stronger and feel more confident with online coaching from ABZ.",
   icons: { icon: "/icon.svg" },
 };
 
