@@ -3,6 +3,7 @@ import { getSiteLinks } from "@/lib/settings";
 import { saveSiteLinksAction } from "@/app/actions/coach";
 import { ActionForm, SubmitButton } from "@/components/form";
 import { Card, CardTitle, Field, PageHeader } from "@/components/ui";
+import { ChangePasswordForm } from "@/components/change-password";
 
 export const metadata = { title: "Settings" };
 
@@ -28,6 +29,10 @@ export default async function Settings({ searchParams }: { searchParams: Promise
           </Field>
           <SubmitButton className="w-full">Save link</SubmitButton>
         </ActionForm>
+      </Card>
+      <Card>
+        <CardTitle eyebrow="Your login" title="Change password" />
+        <ChangePasswordForm minLength={12} />
       </Card>
     </div>
   );

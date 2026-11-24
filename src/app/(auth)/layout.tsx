@@ -13,6 +13,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <footer className="pb-8 text-center text-xs text-faint">
         <Link href="/privacy" className="underline underline-offset-4 hover:text-bone">
           Privacy policy
+        </Link>{" "}
+        ·{" "}
+        <Link href="/terms" className="underline underline-offset-4 hover:text-bone">
+          Terms
         </Link>
       </footer>
     </div>

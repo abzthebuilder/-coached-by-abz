@@ -74,3 +74,19 @@ describe("this week so far", () => {
     expect(targetOn(rows, "2026-11-05")?.calories).toBe(2200);
   });
 });
+
+import { shouldRemind } from "@/lib/reminder-rules";
+
+describe("check-in reminders", () => {
+  const due = (daysUntil: number) => ({ dueDay: "2026-11-29", daysUntil, state: "upcoming" as const });
+  it("reminds the day before, from 9am, once per due date", () => {
+    expect(shouldRemind(due(1), 9, null)).toBe(true);
+    expect(shouldRemind(due(1), 8, null)).toBe(false); // too early in the morning
+    expect(shouldRemind(due(1), 14, "2026-11-29")).toBe(false); // already reminded
+    expect(shouldRemind(due(1), 14, "2026-11-22")).toBe(true); // last week's doesn't count
+  });
+  it("doesn't remind on other days", () => {
+    expect(shouldRemind(due(0), 12, null)).toBe(false);
+    expect(shouldRemind(due(3), 12, null)).toBe(false);
+  });
+});

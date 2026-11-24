@@ -17,8 +17,9 @@ function StatusBadge({ r }: { r: RosterRow }) {
   return <Badge>Due {relativeDay(r.status.dueDay, r.today).toLowerCase()}</Badge>;
 }
 
-export default async function CoachHome() {
+export default async function CoachHome({ searchParams }: { searchParams: Promise<{ deleted?: string }> }) {
   const coach = await requireCoach();
+  const { deleted } = await searchParams;
   const [rows, invites] = await Promise.all([
     roster(coach.id),
     db.authToken.findMany({ where: { coachId: coach.id, kind: "INVITE", usedAt: null, expiresAt: { gt: new Date() } }, orderBy: { createdAt: "desc" } }),
@@ -30,6 +31,11 @@ export default async function CoachHome() {
   return (
     <div className="space-y-5">
       <PageHeader eyebrow={`Welcome back, ${coach.name.split(" ")[0]}`} title="Clients" />
+      {deleted && (
+        <div role="status" className="rounded-xl bg-gold/10 p-3 text-sm text-gold">
+          {deleted} and all their data have been permanently deleted.
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-2">
         {[
           ["Active clients", active.length, false],

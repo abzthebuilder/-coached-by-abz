@@ -38,14 +38,24 @@ export default async function Invite({ params }: { params: Promise<{ token: stri
           <input className="field" type="password" name="confirm" autoComplete="new-password" minLength={10} required />
         </Field>
         <label className="flex gap-3 rounded-xl border border-line bg-char p-4 text-sm text-mute">
+          <input type="checkbox" name="terms" required className="mt-0.5 h-5 w-5 shrink-0 accent-[#d4af37]" />
+          <span>
+            I&apos;m 18 or over, and I agree to the{" "}
+            <a href="/terms" target="_blank" rel="noopener" className="text-gold underline underline-offset-4">
+              terms and health disclaimer
+            </a>
+            .
+          </span>
+        </label>
+        <label className="flex gap-3 rounded-xl border border-line bg-char p-4 text-sm text-mute">
           <input type="checkbox" name="consent" required className="mt-0.5 h-5 w-5 shrink-0 accent-[#d4af37]" />
           <span>
-            I&apos;m 18 or over, I&apos;ve read the{" "}
+            I agree to Coached by ABZ storing and using my health information (such as my weight, measurements,
+            check-ins and progress photos) to coach me, as explained in the{" "}
             <a href="/privacy" target="_blank" rel="noopener" className="text-gold underline underline-offset-4">
               privacy policy
             </a>
-            , and I agree to Coached by ABZ storing and using my health information (such as my weight, measurements,
-            check-ins and progress photos) to coach me.
+            . I can withdraw this at any time.
           </span>
         </label>
         <SubmitButton pendingText="Creating account…" className="w-full">

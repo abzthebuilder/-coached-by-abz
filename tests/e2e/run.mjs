@@ -1,7 +1,9 @@
 // End-to-end check of the coach and client journeys on a phone, plus data isolation
-// between two client accounts. Needs a running server (BASE_URL) and the demo seed
-// (npm run db:seed) for the coach login and "Upper A" template.
-//   BASE_URL=http://localhost:3000 npm run test:e2e
+// between two client accounts. Needs the demo seed (npm run db:seed) for the coach login and
+// "Upper A" template, and a running server started with EMAIL_DEV_LOG=<file> DISABLE_REMINDERS=1
+// so emails are written to that file instead of being sent:
+//   EMAIL_DEV_LOG=/tmp/emails.jsonl DISABLE_REMINDERS=1 npm start
+//   EMAIL_DEV_LOG=/tmp/emails.jsonl BASE_URL=http://localhost:3000 npm run test:e2e
 import { createRequire } from "node:module";
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -13,6 +15,23 @@ const { chromium, devices } = pw;
 const { PrismaClient } = require(path.resolve("node_modules/@prisma/client"));
 const { PrismaPg } = require(path.resolve("node_modules/@prisma/adapter-pg"));
 require(path.resolve("node_modules/dotenv")).config();
+const fs = require("node:fs");
+const { execFileSync } = require("node:child_process");
+const { unzipSync, strFromU8 } = require(path.resolve("node_modules/fflate"));
+
+const EMAIL_LOG = process.env.EMAIL_DEV_LOG;
+if (!EMAIL_LOG) throw new Error("Set EMAIL_DEV_LOG to the same file the server writes emails to.");
+const mailsTo = (to) =>
+  fs.existsSync(EMAIL_LOG) ? fs.readFileSync(EMAIL_LOG, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)).filter((m) => m.to === to) : [];
+const linkIn = (mail) => mail.text.match(/https?:\/\/\S+/)[0];
+const storageRoot = path.resolve(process.env.STORAGE_DIR || (process.env.RAILWAY_VOLUME_MOUNT_PATH ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, "photos") : "storage"));
+const unzip = async (res) => {
+  assert.equal(res.status(), 200, "export downloaded");
+  assert.equal(res.headers()["content-type"], "application/zip");
+  const files = unzipSync(new Uint8Array(await res.body()));
+  return { files, json: JSON.parse(strFromU8(files["data.json"])), text: (n) => strFromU8(files[n]) };
+};
+const COACH_EMAIL = "coach@demo.coachedbyabz.com";
 
 const base = process.env.BASE_URL || "http://localhost:3000";
 const run = Date.now().toString(36);
@@ -50,6 +69,19 @@ try {
       assert.ok(!/£|€|\$\d|per month|per week|pricing|package/i.test(text), `no pricing on ${u}`);
       assert.ok(!/personal training|PT consultation|calendly/i.test(text), `no personal training on ${u}`);
     }
+    await p.goto("/terms");
+    await p.getByRole("heading", { name: "Health disclaimer", exact: true }).waitFor();
+    assert.ok(await p.getByRole("link", { name: "Terms" }).first().isVisible(), "terms link in footer");
+    const manifest = await (await p.request.get("/manifest.webmanifest")).json();
+    assert.equal(manifest.name, "Coached by ABZ");
+    assert.equal(manifest.display, "standalone");
+    for (const u of ["/apple-icon", "/icon/192", "/icon/512", "/opengraph-image"]) {
+      const r = await p.request.get(u);
+      assert.equal(r.status(), 200, u);
+      assert.equal(r.headers()["content-type"], "image/png", u);
+    }
+    await p.goto("/");
+    assert.ok(await p.locator('meta[property="og:image"]').count(), "link preview image set");
     await p.goto("/privacy");
     assert.ok(await p.getByRole("link", { name: "ablofe1@gmail.com" }).first().isVisible(), "privacy contact shown");
     await p.close();
@@ -65,17 +97,29 @@ try {
       await coach.getByRole("button", { name: "Create invite link" }).click();
       const link = await coach.getByLabel("Link").inputValue();
       assert.match(link, /\/invite\//);
+      await coach.getByText(`Invite emailed to ${clients[k].email}`).waitFor();
+      const invite = mailsTo(clients[k].email).at(-1);
+      assert.ok(invite && invite.subject.includes("ready to set up") && linkIn(invite) === link, "invite email has the link");
       const ctx = await phone();
       const p = await ctx.newPage();
       await p.goto(link.replace(/^https?:\/\/[^/]+/, base));
       await p.getByLabel("Password", { exact: true }).fill(clients[k].password);
       await p.getByLabel("Confirm password").fill(clients[k].password);
-      await p.getByRole("checkbox").check(); // privacy + health data consent
+      if (k === "A") {
+        // The server refuses an account without health data consent, even if the browser check is bypassed.
+        await p.locator('input[name="terms"]').check();
+        await p.locator('input[name="consent"]').evaluate((el) => el.removeAttribute("required"));
+        await p.getByRole("button", { name: "Create my account" }).click();
+        await p.getByText("Please tick the box to agree to the privacy policy").waitFor();
+      }
+      await p.locator('input[name="terms"]').check(); // 18+ and terms
+      await p.locator('input[name="consent"]').check(); // health data consent (separate, as UK GDPR expects)
       await p.getByRole("button", { name: "Create my account" }).click();
       await p.waitForURL(/\/app/);
       assert.ok(await p.getByText("You're in.").isVisible());
       const prof = await db.clientProfile.findFirst({ where: { user: { email: clients[k].email } } });
       assert.ok(prof?.healthConsentAt instanceof Date, "consent date recorded");
+      assert.ok(prof?.termsAcceptedAt instanceof Date, "terms acceptance recorded");
       clients[k].ctx = ctx; clients[k].page = p;
       // invite link is single-use
       const p2 = await (await phone()).newPage();
@@ -120,6 +164,11 @@ try {
 
   await step("Client A: Today shows workout, targets, task; Log Steps is one tap", async () => {
     await A.goto("/app");
+    await A.getByText("Use it like an app.").waitFor();
+    await A.getByRole("button", { name: "Hide this tip" }).click();
+    await A.reload();
+    await A.getByRole("heading", { name: "Upper A" }).waitFor();
+    assert.equal(await A.getByText("Use it like an app.").count(), 0, "tip stays hidden once dismissed");
     assert.ok(await A.getByRole("heading", { name: "Upper A" }).isVisible());
     assert.ok(await A.getByText("/ 2,410 kcal").isVisible());
     assert.ok(await A.getByText("Walk after dinner").isVisible());
@@ -183,6 +232,9 @@ try {
     await A.getByRole("button", { name: "Submit Check-in" }).click();
     await A.waitForURL(/sent=1/);
     assert.ok(await A.getByText("Awaiting reply").first().isVisible());
+    const note = mailsTo(COACH_EMAIL).at(-1);
+    assert.ok(note && note.subject === `New check-in from ${clients.A.name}`, "coach emailed about the check-in");
+    assert.ok(!note.text.includes(`Hit every session ${run}`) && !note.text.includes("84.1"), "no health details in the email");
   });
 
   await step("Coach sees it needs a reply, opens progress + check-in side by side, replies", async () => {
@@ -198,6 +250,9 @@ try {
     await A.goto("/app/check-ins");
     await A.getByText("Coach replied").first().click();
     await A.getByText("Great week. Keep it up.").waitFor();
+    const note = mailsTo(clients.A.email).at(-1);
+    assert.ok(note && note.subject === "ABZ replied to your check-in", "client emailed about the reply");
+    assert.ok(!note.text.includes("Great week"), "reply text isn't in the email");
   });
 
   await step("Isolation: client B cannot see or touch client A's records or photos", async () => {
@@ -246,12 +301,124 @@ try {
     assert.equal((await coach.request.get(`/api/photos/${photo.id}`)).status(), 200, "own coach can see photo");
     await ctx.close();
   });
+
+  await step("Client B changes their password on the Account page; other devices are logged out", async () => {
+    const other = await (await phone()).newPage();
+    await login(other, clients.B.email, clients.B.password);
+    await B.goto("/app");
+    await B.getByRole("link", { name: "Account" }).click();
+    await B.getByLabel("Current password").fill("not-my-password");
+    await B.getByLabel("New password", { exact: true }).fill("bravo-new-password-456");
+    await B.getByLabel("Confirm new password").fill("bravo-new-password-456");
+    await B.getByRole("button", { name: "Change password" }).click();
+    await B.getByText("Your current password isn't right.").waitFor();
+    await B.getByLabel("Current password").fill(clients.B.password);
+    await B.getByRole("button", { name: "Change password" }).click();
+    await B.getByText("Password changed.").waitFor();
+    clients.B.password = "bravo-new-password-456";
+    await other.goto("/app");
+    assert.match(other.url(), /\/login/, "other device logged out");
+    await login(other, clients.B.email, clients.B.password);
+    assert.match(other.url(), /\/app/, "new password works");
+    await B.goto("/app");
+    assert.match(B.url(), /\/app$/, "this device stays logged in");
+    await other.context().close();
+  });
+
+  await step("Clients download their own data; the coach can download a client's; nobody else can", async () => {
+    const b = await unzip(await B.request.get("/api/export/me"));
+    assert.equal(b.json.account.email, clients.B.email);
+    assert.ok(b.text("daily-log.csv").includes(",777"), "B's steps in the spreadsheet");
+    assert.ok(!JSON.stringify(b.json).includes(clients.A.email), "nothing of A's in B's export");
+    const a = await unzip(await A.request.get("/api/export/me"));
+    assert.ok(a.json.checkIns.some((c) => c.wins.includes(run)), "A's check-in included");
+    assert.ok(a.json.checkIns[0].replies.some((r) => r.message.includes("Great week")), "coach reply included");
+    const photoFile = Object.keys(a.files).find((f) => f.startsWith("photos/"));
+    assert.ok(photoFile && a.files[photoFile].length > 0, "progress photo included");
+    assert.ok(a.text("workouts.csv").includes("Bench Press"), "workouts spreadsheet");
+    for (const pg of [B, A]) assert.equal((await pg.request.get(`/api/export/client/${profA.id}`)).status(), 404, "clients can't use the coach export");
+    const anon = await browser.newContext({ baseURL: base });
+    assert.equal((await anon.request.get("/api/export/me")).status(), 404);
+    assert.equal((await anon.request.get(`/api/export/client/${profA.id}`)).status(), 404);
+    await anon.close();
+    const c = await unzip(await coach.request.get(`/api/export/client/${profA.id}`));
+    assert.equal(c.json.account.email, clients.A.email);
+  });
+
+  await step("Forgot password emails a working reset link, without revealing who has an account", async () => {
+    const p = await (await phone()).newPage();
+    await p.goto("/login");
+    await p.getByRole("link", { name: "Forgot your password?" }).click();
+    await p.waitForURL(/\/forgot/);
+    await p.getByLabel("Email").fill(`nobody.${run}@test.coachedbyabz.com`);
+    await p.getByRole("button", { name: "Send reset link" }).click();
+    await p.getByText("If nobody.").waitFor();
+    assert.equal(mailsTo(`nobody.${run}@test.coachedbyabz.com`).length, 0, "no email for unknown address");
+    await p.goto("/forgot");
+    await p.getByLabel("Email").fill(clients.A.email);
+    await p.getByRole("button", { name: "Send reset link" }).click();
+    await p.getByText(`If ${clients.A.email} has an account`).waitFor();
+    const mail = mailsTo(clients.A.email).at(-1);
+    assert.equal(mail.subject, "Reset your Coached by ABZ password");
+    await p.goto(linkIn(mail).replace(/^https?:\/\/[^/]+/, base));
+    await p.getByLabel("New password", { exact: true }).fill("alpha-reset-password-789");
+    await p.getByLabel("Confirm password").fill("alpha-reset-password-789");
+    await p.getByRole("button", { name: "Save password" }).click();
+    await p.waitForURL(/\/app/);
+    clients.A.password = "alpha-reset-password-789";
+    await A.goto("/app");
+    assert.match(A.url(), /\/login/, "old sessions ended after reset");
+    clients.A.page2 = p;
+  });
+
+  await step("Check-in reminder is emailed the day before it's due, only once", async () => {
+    const tz = "Europe/London";
+    const T = new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date());
+    const addDays = (d, n) => { const x = new Date(d + "T00:00:00Z"); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+    const tomorrowWd = new Date(addDays(T, 1) + "T00:00:00Z").getUTCDay();
+    await db.user.update({ where: { email: clients.B.email }, data: { timezone: tz } });
+    await db.clientProfile.update({ where: { id: profB.id }, data: { checkInFrequency: "WEEKLY", checkInWeekday: tomorrowWd, startDay: addDays(T, -30), lastReminderDueDay: null } });
+    // Last week's check-in was done, so the next one is due tomorrow.
+    await db.checkIn.create({ data: { clientId: profB.id, type: "WEEKLY", day: addDays(T, -6), sleepQuality: 3, energy: 3, trainingRating: 3, nutritionRating: 3 } });
+    const runReminders = () =>
+      execFileSync("npx", ["tsx", "scripts/run-reminders.ts"], { env: { ...process.env, APP_URL: base, REMINDER_NOW: `${T}T12:00:00Z` }, encoding: "utf8" });
+    runReminders();
+    let reminders = mailsTo(clients.B.email).filter((m) => m.subject === "Your check-in is due tomorrow");
+    assert.equal(reminders.length, 1, "one reminder sent");
+    assert.ok(linkIn(reminders[0]).endsWith("/app/check-ins/new"));
+    runReminders();
+    reminders = mailsTo(clients.B.email).filter((m) => m.subject === "Your check-in is due tomorrow");
+    assert.equal(reminders.length, 1, "not sent twice");
+  });
+
+  await step("Coach deletes client A permanently: records, photos and logins all gone", async () => {
+    const photo = await db.progressPhoto.findFirst({ where: { clientId: profA.id } });
+    const photoPath = path.join(storageRoot, photo.storageKey);
+    assert.ok(fs.existsSync(photoPath), "photo stored before delete");
+    await coach.goto(`/coach/clients/${profA.id}?view=profile`);
+    await coach.getByLabel("Type DELETE to confirm").fill("delete");
+    await coach.getByRole("button", { name: `Delete ${clients.A.name} permanently` }).click();
+    await coach.getByText("Type DELETE in capitals to confirm.").waitFor();
+    assert.ok(await db.clientProfile.findUnique({ where: { id: profA.id } }), "nothing deleted without confirmation");
+    await coach.getByLabel("Type DELETE to confirm").fill("DELETE");
+    await coach.getByRole("button", { name: `Delete ${clients.A.name} permanently` }).click();
+    await coach.waitForURL(/\/coach\?deleted=/);
+    await coach.getByText(`${clients.A.name} and all their data have been permanently deleted.`).waitFor();
+    assert.equal(await db.user.findUnique({ where: { email: clients.A.email } }), null, "account gone");
+    assert.equal(await db.clientProfile.findUnique({ where: { id: profA.id } }), null, "profile gone");
+    assert.equal(await db.checkIn.count({ where: { clientId: profA.id } }), 0, "check-ins gone");
+    assert.equal(await db.progressPhoto.count({ where: { clientId: profA.id } }), 0, "photo records gone");
+    assert.ok(!fs.existsSync(photoPath), "photo file removed from storage");
+    await clients.A.page2.goto("/app");
+    assert.match(clients.A.page2.url(), /\/login/, "their login no longer works");
+    assert.equal((await coach.request.get(`/api/export/client/${profA.id}`)).status(), 404);
+    assert.equal((await coach.request.get(`/api/photos/${photo.id}`)).status(), 404);
+  });
 } finally {
   // Clean up test accounts so runs don't pile up.
   const emails = { contains: `${run}@test.coachedbyabz.com` };
   const photos = await db.progressPhoto.findMany({ where: { client: { user: { email: emails } } } });
-  const fs = require("node:fs");
-  for (const ph of photos) fs.rmSync(path.resolve(process.env.STORAGE_DIR || (process.env.RAILWAY_VOLUME_MOUNT_PATH ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, "photos") : "storage"), ph.storageKey), { force: true });
+  for (const ph of photos) fs.rmSync(path.join(storageRoot, ph.storageKey), { force: true });
   await db.user.deleteMany({ where: { email: emails, role: "CLIENT" } });
   await db.user.deleteMany({ where: { email: emails } });
   await db.$disconnect();

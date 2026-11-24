@@ -30,9 +30,14 @@ export default async function ClientLayout({ children }: { children: React.React
           <Link href="/app">
             <Logo className="text-lg" />
           </Link>
-          <form action={logoutAction}>
-            <button className="min-h-11 px-2 text-sm text-mute hover:text-bone">Log out</button>
-          </form>
+          <div className="flex items-center gap-1">
+            <Link href="/app/account" className="flex min-h-11 items-center px-2 text-sm text-mute hover:text-bone">
+              Account
+            </Link>
+            <form action={logoutAction}>
+              <button className="min-h-11 px-2 text-sm text-mute hover:text-bone">Log out</button>
+            </form>
+          </div>
         </div>
       </header>
       <div className="mx-auto flex max-w-6xl gap-8 px-4 md:pt-6">

@@ -1,7 +1,9 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { siteUrl } from "@/lib/request-url";
+import { emailEnabled, sendEmail } from "@/lib/email";
+import { emails } from "@/lib/email-templates";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { randomToken, requireCoach, requireCoachedClient, sha256 } from "@/lib/auth";
@@ -9,16 +11,10 @@ import { isDay, todayIn } from "@/lib/dates";
 import { fail, InputError, reqNum, text } from "@/lib/parse";
 import { calculateMacros } from "@/lib/macros";
 import { isSafeHttpUrl } from "@/lib/settings";
+import { deleteObject } from "@/lib/storage";
 import type { FormState } from "@/components/form";
 
-async function baseUrl() {
-  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, "");
-  if (process.env.RAILWAY_PUBLIC_DOMAIN) return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  return `${proto}://${host}`;
-}
+const baseUrl = siteUrl;
 
 // ---------- Invites & accounts ----------
 
@@ -38,7 +34,15 @@ export async function createInviteAction(_: FormState, fd: FormData): Promise<Fo
     data: { tokenHash: sha256(token), kind: "INVITE", email, name, coachId: coach.id, expiresAt: new Date(Date.now() + 14 * 86400000) },
   });
   revalidatePath("/coach");
-  return { ok: true, message: `Invite created for ${name}. It works once and expires in 14 days.`, link: `${await baseUrl()}/invite/${token}` };
+  const link = `${await baseUrl()}/invite/${token}`;
+  const emailed = emailEnabled() && (await sendEmail(emails.invite(email, name, link)));
+  return {
+    ok: true,
+    message: emailed
+      ? `Invite emailed to ${email}. You can also copy the link below. It works once and expires in 14 days.`
+      : `Invite created for ${name}. It works once and expires in 14 days.`,
+    link,
+  };
 }
 
 export async function revokeInviteAction(fd: FormData) {
@@ -61,7 +65,15 @@ export async function createResetLinkAction(_: FormState, fd: FormData): Promise
       expiresAt: new Date(Date.now() + 2 * 86400000),
     },
   });
-  return { ok: true, message: "Reset link created. It works once and expires in 48 hours.", link: `${await baseUrl()}/reset/${token}` };
+  const link = `${await baseUrl()}/reset/${token}`;
+  const emailed = emailEnabled() && (await sendEmail(emails.reset(profile.user.email, profile.user.name, link, 48)));
+  return {
+    ok: true,
+    message: emailed
+      ? `Reset link emailed to ${profile.user.email}. You can also copy it below. It works once and expires in 48 hours.`
+      : "Reset link created. It works once and expires in 48 hours.",
+    link,
+  };
 }
 
 export async function saveSiteLinksAction(_: FormState, fd: FormData): Promise<FormState> {
@@ -328,9 +340,29 @@ export async function coachReplyAction(_: FormState, fd: FormData): Promise<Form
   const checkInId = text(fd, "checkInId", 64);
   const body = text(fd, "body", 8000);
   if (!body) return { error: "Write a reply first." };
-  const ci = await db.checkIn.findFirst({ where: { id: checkInId, client: { coachId: coach.id } } });
+  const ci = await db.checkIn.findFirst({ where: { id: checkInId, client: { coachId: coach.id } }, include: { client: { include: { user: true } } } });
   if (!ci) return { error: "Check-in not found." };
   await db.checkInReply.create({ data: { checkInId, authorId: coach.id, body } });
+  if (emailEnabled()) {
+    const u = ci.client.user;
+    await sendEmail(emails.coachReplied(u.email, u.name, `${await baseUrl()}/app/check-ins/${ci.id}`));
+  }
   revalidatePath("/coach", "layout");
   return { ok: true, message: "Reply sent." };
+}
+
+// ---------- Delete a client and all their data ----------
+
+export async function deleteClientAction(_: FormState, fd: FormData): Promise<FormState> {
+  const { profile } = await requireCoachedClient(text(fd, "clientId", 64));
+  if (text(fd, "confirm", 20) !== "DELETE") return { error: "Type DELETE in capitals to confirm." };
+  const photos = await db.progressPhoto.findMany({ where: { clientId: profile.id }, select: { storageKey: true } });
+  await db.$transaction([
+    db.authToken.deleteMany({ where: { OR: [{ email: profile.user.email }, { userId: profile.userId }] } }),
+    // Deleting the user removes their profile, sessions, logs, check-ins, measurements, photo records and tasks.
+    db.user.delete({ where: { id: profile.userId } }),
+  ]);
+  for (const ph of photos) await deleteObject(ph.storageKey);
+  revalidatePath("/coach", "layout");
+  redirect(`/coach?deleted=${encodeURIComponent(profile.user.name)}`);
 }

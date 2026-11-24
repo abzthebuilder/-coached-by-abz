@@ -102,6 +102,8 @@ model ClientProfile {
   nutritionNotes    String           @default("")
   coachNotes        String           @default("") // private to coach
   healthConsentAt   DateTime? // when the client agreed to health data + photo processing (UK GDPR explicit consent)
+  termsAcceptedAt   DateTime? // when the client accepted the terms and health disclaimer
+  lastReminderDueDay String? // check-in due date we last emailed a reminder for (prevents duplicates)
   active            Boolean          @default(true)
   createdAt         DateTime         @default(now())
 

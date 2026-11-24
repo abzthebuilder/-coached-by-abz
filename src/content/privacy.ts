@@ -49,6 +49,7 @@ export const privacySections: PrivacySection[] = [
     bullets: [
       "Railway hosts the app and its database. Your information, including your progress photos, is stored on Railway's servers in Amsterdam, the Netherlands. Railway is a US company, so in limited cases (such as technical support) information may be accessed from outside the UK. Where that happens it's protected by Railway's data processing terms.",
       "Tally provides the application form.",
+      "Resend sends the app's emails, such as invites, password resets, check-in reminders and reply notifications. These emails never contain your health information, only a link to log in. Resend is a US company, and your email address is protected by its data processing terms.",
     ],
   },
   {
@@ -61,7 +62,7 @@ export const privacySections: PrivacySection[] = [
   {
     heading: "Cookies",
     paragraphs: [
-      "This site uses one essential cookie to keep you logged in. There are no advertising or tracking cookies, and no analytics.",
+      "This site uses one essential cookie to keep you logged in. There are no advertising or tracking cookies, and no analytics. Your browser may also remember small choices you make, such as hiding a tip.",
     ],
   },
   {
@@ -88,7 +89,7 @@ export const privacySections: PrivacySection[] = [
   {
     heading: "How to use your rights",
     paragraphs: [
-      `Email me at ${PRIVACY_CONTACT}. I'll reply within one month.`,
+      `Clients can download a copy of their information at any time from the Account page in the app. For anything else, email me at ${PRIVACY_CONTACT}. I'll reply within one month.`,
     ],
   },
   {

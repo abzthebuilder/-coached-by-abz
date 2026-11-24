@@ -12,6 +12,7 @@ import {
   coachReplyAction,
   createPlanAction,
   createResetLinkAction,
+  deleteClientAction,
   removePlanWorkoutAction,
   saveNutritionNotesAction,
   savePlanWorkoutAction,
@@ -481,16 +482,48 @@ function ProfileView({ profile }: { profile: Awaited<ReturnType<typeof requireCo
         </ActionForm>
       </Card>
       <Card className="h-fit">
-        <CardTitle eyebrow="Account" title="Password reset" />
+        <CardTitle eyebrow="Account" title="Consent &amp; login" />
         <p className="mb-3 text-sm text-mute">
           {profile.healthConsentAt
-            ? `Agreed to the privacy policy and health data consent on ${fmtDay(profile.healthConsentAt.toISOString().slice(0, 10), { year: true })}.`
-            : "No consent recorded (account created before the consent box was added)."}
+            ? `Health data consent given ${fmtDay(profile.healthConsentAt.toISOString().slice(0, 10), { year: true })}.`
+            : "No health data consent recorded (account created before the consent box was added)."}{" "}
+          {profile.termsAcceptedAt
+            ? `Terms accepted ${fmtDay(profile.termsAcceptedAt.toISOString().slice(0, 10), { year: true })}.`
+            : "No terms acceptance recorded."}
         </p>
         <p className="mb-3 text-sm text-mute">Forgot their password? Create a one-time reset link and send it to them.</p>
         <LinkActionForm action={createResetLinkAction} submitLabel="Create reset link" name={profile.user.name}>
           <input type="hidden" name="clientId" value={profile.id} />
         </LinkActionForm>
+      </Card>
+      <Card className="h-fit lg:col-start-2">
+        <CardTitle eyebrow="Their data" title="Download or delete" />
+        <p className="mb-3 text-sm text-mute">
+          Download a copy of everything stored about {profile.user.name.split(" ")[0]}, including your private notes. Use this if they ask
+          for their data.
+        </p>
+        <a
+          href={`/api/export/client/${profile.id}`}
+          className="flex min-h-12 w-full items-center justify-center rounded-xl border border-line bg-char-2 px-5 font-semibold hover:border-gold/60"
+        >
+          Download their data (.zip)
+        </a>
+        <div className="mt-6 rounded-xl border border-warn/40 p-4">
+          <h3 className="font-semibold text-warn">Delete client permanently</h3>
+          <p className="mt-1 text-sm text-mute">
+            Deletes their account, logs, check-ins, measurements and progress photos. This can&apos;t be undone. Download their data
+            first if you need to keep a copy.
+          </p>
+          <ActionForm action={deleteClientAction} className="mt-3 space-y-3">
+            <input type="hidden" name="clientId" value={profile.id} />
+            <Field label="Type DELETE to confirm">
+              <input className="field" name="confirm" autoComplete="off" autoCapitalize="characters" required />
+            </Field>
+            <SubmitButton variant="danger" pendingText="Deleting…" className="w-full">
+              Delete {profile.user.name} permanently
+            </SubmitButton>
+          </ActionForm>
+        </div>
       </Card>
     </div>
   );

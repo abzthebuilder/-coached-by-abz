@@ -3,7 +3,7 @@
 The public website and private coaching portal for Coached by ABZ.
 
 - **Public site** (`/`, `/coaching`, `/about`, `/get-started`): services, coaching story, what to expect and how to get started. It has two buttons: Apply for Online Coaching (Tally) and Client Login. There's no pricing on the site.
-- **Client portal** (`/app`): Today, Training, Nutrition & steps, Progress and Check-ins, with bottom navigation on phones.
+- **Client portal** (`/app`): Today, Training, Nutrition & steps, Progress and Check-ins, with bottom navigation on phones, plus an Account page. Clients can add it to their home screen and open it like an app.
 - **Coach dashboard** (`/coach`): roster with check-in status, invites, a check-in inbox, workout templates, and each client's progress next to their latest check-in. Also plans, a macro calculator, tasks, logs, photos and settings.
 
 Built with Next.js (App Router), PostgreSQL through Prisma, and email + password logins using server-side sessions. Progress photos go in private storage, either on local disk or in an S3-compatible bucket.
@@ -43,6 +43,26 @@ Progress photos are never in `/public`. They're served only through `/api/photos
 - `STORAGE_DRIVER=local`: files go in `STORAGE_DIR`. Use a persistent disk or volume.
 - `STORAGE_DRIVER=s3`: uses any S3-compatible bucket (AWS S3, Cloudflare R2, Backblaze). Keep the bucket **private**.
 
+## Emails (optional)
+
+Out of the box the app sends no email: you copy invite and reset links by hand. Once you have your own
+domain, create a [Resend](https://resend.com) account, verify the domain there, and set `RESEND_API_KEY`,
+`EMAIL_FROM` (e.g. `Coached by ABZ <coach@yourdomain.com>`) and optionally `EMAIL_REPLY_TO`. Then:
+
+- invites and password reset links are emailed automatically, and the login page's **Forgot password** works
+- clients get an email when you reply to their check-in; you get one when a client checks in or replies
+- clients get a reminder the day before a check-in is due (9am their time, once per check-in)
+
+Emails never include health information, only a short note and a link to log in.
+
+## Client data rights
+
+- Clients can download a copy of all their information from **Account** in the app.
+- On a client's **Profile** tab, the coach can **Download their data** or **Delete client permanently**
+  (type DELETE to confirm; removes their account, records and progress photos).
+- Sign-up requires two separate tick boxes: terms/health disclaimer (and 18+), and health data consent.
+  The dates are stored and shown on the client's Profile tab.
+
 ## How access is enforced
 
 - Client actions never accept a client id. The client is always taken from the session (`requireClient`), so a client can only read or write their own records.
@@ -63,9 +83,10 @@ Progress photos are never in `/public`. They're served only through `/api/photos
 ```bash
 npm test                         # unit tests: macro maths, check-in schedule, week comparison, adherence
 npm run db:seed                  # demo coach + 2 demo clients (dev only)
+# e2e expects the server started with EMAIL_DEV_LOG=<file> so emails are written to a file:
 BASE_URL=http://localhost:3000 NODE_PATH=$(npm root -g) npm run test:e2e
 ```
 
-The end-to-end suite runs on an emulated iPhone 13. It runs the coach and client journeys (invite → accept → plan from template → macro calculator → log steps → log workout → last-time hints → daily totals → chart tap → photo upload → check-in → coach reply) and checks isolation: a second client and a second coach both get 404s for the first client's photos, check-ins and workouts, and none of the first client's data shows up on their pages.
+The end-to-end suite runs on an emulated iPhone 13. It runs the coach and client journeys (invite → accept → plan from template → macro calculator → log steps → log workout → last-time hints → daily totals → chart tap → photo upload → check-in → coach reply) and checks isolation: a second client and a second coach both get 404s for the first client's photos, check-ins and workouts, and none of the first client's data shows up on their pages. It also covers the consent tick boxes (enforced on the server), every email (invite, reply, check-in, reset, reminder, and that none contain health details), forgot password, changing password, data downloads (and that nobody else can download them), the once-only check-in reminder, and permanently deleting a client including their photo files.
 
 Demo logins after `npm run db:seed`: `coach@demo.coachedbyabz.com` / `coach-demo-pass-1`, `alex@demo.coachedbyabz.com` / `alex-demo-pass-1`, `sam@demo.coachedbyabz.com` / `sam-demo-pass-1`. Don't seed production.

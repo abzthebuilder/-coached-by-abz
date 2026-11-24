@@ -8,6 +8,7 @@ import { tasksForToday } from "@/lib/tasks";
 import { mean } from "@/lib/metrics";
 import { toggleTaskAction } from "@/app/actions/client";
 import { QuickActions } from "@/components/quick-actions";
+import { HomeScreenTip } from "@/components/home-screen-tip";
 import { Badge, ButtonLink, Card, CardTitle, Empty, cx, fmtNum } from "@/components/ui";
 
 function Bar({ value, target }: { value: number | null; target: number }) {
@@ -52,6 +53,8 @@ export default async function Today({ searchParams }: { searchParams: Promise<{ 
           {greeting}, {user.name.split(" ")[0]}
         </h1>
       </header>
+
+      <HomeScreenTip />
 
       <QuickActions workoutHref={next ? `/app/training/log/${next.id}` : "/app/training/log/custom"} today={today} stepsToday={todayLog?.steps ?? null} />
 

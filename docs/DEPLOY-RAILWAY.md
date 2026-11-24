@@ -94,3 +94,18 @@ Railway's backups live inside Railway. For a copy you control, run `pg_dump` aga
 - Never run `npm run db:seed` against this database. It creates demo accounts with public passwords.
 - With a volume attached, Railway runs one copy of the app and there's a short pause during each redeploy. That's fine for coaching traffic.
 - When you're ready to go fully live, merge the branch into `main` and point Railway's **Source → Branch** back to `main`.
+
+## Switching on emails (after you have your own domain)
+
+1. Buy your domain and connect it in Railway (app service → Settings → Networking → Custom Domain).
+2. Change the app's `APP_URL` variable to your domain, e.g. `https://coachedbyabz.com`, so links in emails use it.
+3. Create a free account at resend.com, add your domain under **Domains**, and add the DNS records it shows you
+   at your domain provider. Wait until Resend says **Verified**.
+4. In Resend, create an **API key** (sending access only).
+5. In Railway, add these variables to the app service and deploy:
+   ```
+   RESEND_API_KEY=the-key-from-resend
+   EMAIL_FROM=Coached by ABZ <coach@yourdomain.com>
+   EMAIL_REPLY_TO=ablofe1@gmail.com
+   ```
+6. Test it: log out, tap **Forgot your password?** on the login page, and check the email arrives.

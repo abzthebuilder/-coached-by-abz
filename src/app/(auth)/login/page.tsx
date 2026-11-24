@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { loginAction } from "@/app/actions/auth";
@@ -25,10 +26,12 @@ export default async function Login() {
           Log in
         </SubmitButton>
       </ActionForm>
-      <p className="mt-6 text-sm text-faint">
-        New client? Use the invite link from your coach to set up your account. Forgotten your password? Ask your coach
-        for a reset link.
+      <p className="mt-4 text-center text-sm">
+        <Link href="/forgot" className="text-gold underline underline-offset-4">
+          Forgot your password?
+        </Link>
       </p>
+      <p className="mt-6 text-sm text-faint">New client? Use the invite link from your coach to set up your account.</p>
     </div>
   );
 }

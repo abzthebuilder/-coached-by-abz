@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ButtonLink, Logo, cx } from "./ui";
 import type { SiteLinks } from "@/lib/settings";
+import { social } from "@/content/site";
 import { MobileMenu } from "./mobile-menu";
 
 const NAV = [
@@ -57,6 +58,21 @@ export function SiteFooter({ links }: { links: SiteLinks }) {
           <p className="mt-3 max-w-sm text-sm text-mute">
             Online coaching to help you build muscle, lose fat, get stronger and feel more confident.
           </p>
+          {social.instagram && (
+            <a
+              href={`https://instagram.com/${social.instagram}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-gold"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+                <rect x="3" y="3" width="18" height="18" rx="5" />
+                <circle cx="12" cy="12" r="4" />
+                <circle cx="17.5" cy="6.5" r="1" fill="currentColor" />
+              </svg>
+              @{social.instagram}
+            </a>
+          )}
         </div>
         <CtaButtons links={links} stacked />
       </div>
@@ -64,6 +80,10 @@ export function SiteFooter({ links }: { links: SiteLinks }) {
         © {new Date().getFullYear()} Coached by ABZ ·{" "}
         <Link href="/privacy" className="underline underline-offset-4 hover:text-bone">
           Privacy policy
+        </Link>{" "}
+        ·{" "}
+        <Link href="/terms" className="underline underline-offset-4 hover:text-bone">
+          Terms
         </Link>
       </div>
     </footer>

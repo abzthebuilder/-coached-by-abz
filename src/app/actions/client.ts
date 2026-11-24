@@ -8,10 +8,20 @@ import { fail, InputError, logDay, num, rating, text } from "@/lib/parse";
 import { normaliseExercise } from "@/lib/metrics";
 import { deleteObject, putObject, sniffImage, storageProblem } from "@/lib/storage";
 import type { FormState } from "@/components/form";
+import { emailEnabled, sendEmail } from "@/lib/email";
+import { emails } from "@/lib/email-templates";
+import { siteUrl } from "@/lib/request-url";
 import { z } from "zod";
 
 // Every action here derives the client from the session. None of them accept a client id,
 // so one client can never write to another client's records.
+
+/** Emails the coach (if email is set up). Never blocks or fails the client's action. */
+async function notifyCoach(coachId: string, build: (base: string) => (to: string) => ReturnType<typeof emails.checkInSubmitted>) {
+  if (!emailEnabled()) return;
+  const coach = await db.user.findUnique({ where: { id: coachId }, select: { email: true } });
+  if (coach) await sendEmail(build(await siteUrl())(coach.email));
+}
 
 const DAILY_FIELDS = {
   weightKg: { label: "Body weight", min: 20, max: 400, int: false },
@@ -114,10 +124,11 @@ export async function deleteWorkoutLogAction(fd: FormData) {
 
 export async function submitCheckInAction(_: FormState, fd: FormData): Promise<FormState> {
   const { user, profile } = await requireClient();
+  let checkInId: string;
   try {
     const today = todayIn(user.timezone);
     const bodyWeightKg = num(fd, "bodyWeightKg", "Body weight", { min: 20, max: 400 });
-    await db.checkIn.create({
+    const created = await db.checkIn.create({
       data: {
         clientId: profile.id,
         type: profile.checkInFrequency,
@@ -135,6 +146,7 @@ export async function submitCheckInAction(_: FormState, fd: FormData): Promise<F
         questions: text(fd, "questions"),
       },
     });
+    checkInId = created.id;
     // The check-in weight also counts as today's weigh-in if they haven't logged one.
     if (bodyWeightKg !== null) {
       const existing = await db.dailyLog.findUnique({ where: { clientId_day: { clientId: profile.id, day: today } } });
@@ -148,6 +160,7 @@ export async function submitCheckInAction(_: FormState, fd: FormData): Promise<F
   } catch (e) {
     return fail(e);
   }
+  await notifyCoach(profile.coachId, (base) => (to) => emails.checkInSubmitted(to, user.name, `${base}/coach/clients/${profile.id}?checkin=${checkInId}`));
   revalidatePath("/app", "layout");
   revalidatePath("/coach", "layout");
   return { ok: true, message: "Check-in sent. Your coach will reply here." };
@@ -161,6 +174,7 @@ export async function clientReplyAction(_: FormState, fd: FormData): Promise<For
   const ci = await db.checkIn.findFirst({ where: { id: checkInId, clientId: profile.id } });
   if (!ci) return { error: "Check-in not found." };
   await db.checkInReply.create({ data: { checkInId, authorId: user.id, body } });
+  await notifyCoach(profile.coachId, (base) => (to) => emails.clientReplied(to, user.name, `${base}/coach/clients/${profile.id}?checkin=${checkInId}`));
   revalidatePath("/app/check-ins", "layout");
   return { ok: true, message: "Sent." };
 }

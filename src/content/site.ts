@@ -2,6 +2,11 @@
 // Gym photos live in /public/images under the file names below.
 // If a photo is missing, the hero and story show a branded panel; other spots are simply hidden.
 
+// Social links shown in the footer. Leave empty to hide.
+export const social = {
+  instagram: "", // handle without the @, e.g. "coachedbyabz"
+};
+
 export type Photo = { file: string; alt: string; position?: string };
 
 export const photos: Record<"hero" | "about" | "online" | "gym" | "banner", Photo> = {
