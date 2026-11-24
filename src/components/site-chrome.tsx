@@ -72,23 +72,39 @@ export function SiteFooter({ links }: { links: SiteLinks }) {
 
 const publicDir = path.join(process.cwd(), "public", "images");
 
+export function hasPhoto(photo: { file: string }): boolean {
+  return fs.existsSync(path.join(publicDir, photo.file));
+}
+
 /** Shows one of the coach's own gym photos from /public/images, or a branded panel if it hasn't been added yet. */
 export function GymPhoto({
   photo,
   className,
   priority,
+  optional,
   sizes = "(min-width: 768px) 50vw, 100vw",
 }: {
-  photo: { file: string; alt: string };
+  photo: { file: string; alt: string; position?: string };
   className?: string;
   priority?: boolean;
+  /** Render nothing (instead of a branded placeholder) when the photo hasn't been added. */
+  optional?: boolean;
   sizes?: string;
 }) {
-  const exists = fs.existsSync(path.join(publicDir, photo.file));
+  const exists = hasPhoto(photo);
+  if (!exists && optional) return null;
   return (
     <div className={cx("relative overflow-hidden rounded-2xl bg-char-2", className)}>
       {exists ? (
-        <Image src={`/images/${photo.file}`} alt={photo.alt} fill priority={priority} sizes={sizes} className="object-cover" />
+        <Image
+          src={`/images/${photo.file}`}
+          alt={photo.alt}
+          fill
+          priority={priority}
+          sizes={sizes}
+          className="object-cover"
+          style={photo.position ? { objectPosition: photo.position } : undefined}
+        />
       ) : (
         <div
           role="img"

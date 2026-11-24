@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CtaButtons, GymPhoto } from "@/components/site-chrome";
+import { CtaButtons, GymPhoto, hasPhoto } from "@/components/site-chrome";
 import { getSiteLinks } from "@/lib/settings";
 import { audiences, expectations, hero, outcomes, photos, services, steps, story } from "@/content/site";
 
@@ -56,7 +56,7 @@ export default async function Home() {
       {/* Story */}
       <section className="bg-char">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-14 md:grid-cols-2 md:items-center">
-          <GymPhoto photo={photos.about} className="aspect-[4/3]" />
+          <GymPhoto photo={photos.about} className="aspect-square" />
           <div>
             <div className="eyebrow mb-2">{story.eyebrow}</div>
             <h2 className="font-display text-4xl uppercase leading-none">{story.title}</h2>
@@ -79,7 +79,7 @@ export default async function Home() {
             { s: services.pt, href: links.calendlyUrl, cta: "Book a PT Consultation", photo: photos.pt },
           ].map(({ s, href, cta, photo }) => (
             <article key={s.title} className="flex flex-col overflow-hidden rounded-2xl border border-line/70 bg-char">
-              <GymPhoto photo={photo} className="aspect-[16/9] rounded-none" />
+              <GymPhoto photo={photo} optional className="aspect-[16/9] rounded-none" />
               <div className="flex flex-1 flex-col p-5">
                 <h3 className="font-display text-3xl uppercase">{s.title}</h3>
                 <p className="mt-1 text-gold">{s.tagline}</p>
@@ -121,12 +121,14 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Photo strip */}
-      <section className="mx-auto grid max-w-6xl grid-cols-3 gap-2 px-4 pt-14">
-        <GymPhoto photo={photos.strip1} className="aspect-square" sizes="33vw" />
-        <GymPhoto photo={photos.strip2} className="aspect-square" sizes="33vw" />
-        <GymPhoto photo={photos.strip3} className="aspect-square" sizes="33vw" />
-      </section>
+      {/* Photo strip: only the photos that have been added */}
+      {[photos.strip1, photos.strip2, photos.strip3].some(hasPhoto) && (
+        <section className="mx-auto grid max-w-6xl grid-cols-3 gap-2 px-4 pt-14">
+          {[photos.strip1, photos.strip2, photos.strip3].filter(hasPhoto).map((ph) => (
+            <GymPhoto key={ph.file} photo={ph} className="aspect-square" sizes="33vw" />
+          ))}
+        </section>
+      )}
 
       {/* Getting started */}
       <section className="mx-auto max-w-6xl px-4 py-14">

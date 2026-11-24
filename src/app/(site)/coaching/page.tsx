@@ -1,4 +1,4 @@
-import { CtaButtons, GymPhoto } from "@/components/site-chrome";
+import { CtaButtons, GymPhoto, hasPhoto } from "@/components/site-chrome";
 import { getSiteLinks } from "@/lib/settings";
 import { audiences, expectations, faqs, photos, services } from "@/content/site";
 
@@ -19,8 +19,8 @@ export default async function Coaching() {
         { s: services.online, photo: photos.online, cta: { href: links.tallyUrl, label: "Apply for Online Coaching" } },
         { s: services.pt, photo: photos.pt, cta: { href: links.calendlyUrl, label: "Book a PT Consultation" } },
       ].map(({ s, photo, cta }, i) => (
-        <section key={s.title} className="mt-12 grid gap-6 md:grid-cols-2 md:items-center">
-          <GymPhoto photo={photo} className={i % 2 ? "aspect-[4/3] md:order-2" : "aspect-[4/3]"} />
+        <section key={s.title} className={hasPhoto(photo) ? "mt-12 grid gap-6 md:grid-cols-2 md:items-center" : "mt-12 max-w-2xl"}>
+          <GymPhoto photo={photo} optional className={i % 2 ? "aspect-[4/3] md:order-2" : "aspect-[4/3]"} />
           <div>
             <h2 className="font-display text-4xl uppercase">{s.title}</h2>
             <p className="mt-1 text-lg text-gold">{s.tagline}</p>

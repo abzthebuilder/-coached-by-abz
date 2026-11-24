@@ -2,15 +2,17 @@
 // Gym photos: drop your own files into /public/images using the file names below.
 // If a file is missing the site shows a branded panel instead, so nothing breaks.
 
-export const photos = {
-  hero: { file: "hero.jpg", alt: "ABZ training in the gym" },
-  about: { file: "about.jpg", alt: "ABZ coaching a client on the gym floor" },
+export type Photo = { file: string; alt: string; position?: string };
+
+export const photos: Record<"hero" | "about" | "online" | "pt" | "strip1" | "strip2" | "strip3", Photo> = {
+  hero: { file: "hero.jpg", alt: "ABZ doing cable curls in the gym", position: "50% 40%" },
+  about: { file: "about.jpg", alt: "ABZ at 15, skinny and just starting out, next to ABZ today" },
   online: { file: "online.jpg", alt: "Client following an online training plan" },
-  pt: { file: "pt.jpg", alt: "ABZ running a 1:1 personal training session" },
-  strip1: { file: "gym-1.jpg", alt: "Heavy compound lift in the gym" },
-  strip2: { file: "gym-2.jpg", alt: "Dumbbell work during a session" },
-  strip3: { file: "gym-3.jpg", alt: "Client and coach reviewing progress" },
-} as const;
+  pt: { file: "pt.jpg", alt: "ABZ in the gym", position: "50% 15%" },
+  strip1: { file: "gym-1.jpg", alt: "Training in the gym" },
+  strip2: { file: "gym-2.jpg", alt: "Training in the gym" },
+  strip3: { file: "gym-3.jpg", alt: "Training in the gym" },
+};
 
 export const hero = {
   eyebrow: "Online coaching · 1:1 personal training",

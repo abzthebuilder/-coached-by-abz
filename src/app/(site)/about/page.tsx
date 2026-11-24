@@ -9,7 +9,7 @@ export default async function About() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
       <div className="grid gap-8 md:grid-cols-[1fr_1.1fr] md:items-start">
-        <GymPhoto photo={photos.about} priority className="aspect-[4/5] md:sticky md:top-24" />
+        <GymPhoto photo={photos.about} priority className="aspect-square md:sticky md:top-24" />
         <div>
           <div className="eyebrow mb-2">{story.eyebrow}</div>
           <h1 className="font-display text-5xl uppercase leading-none">{story.title}</h1>
