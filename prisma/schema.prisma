@@ -101,6 +101,7 @@ model ClientProfile {
   checkInMonthDay   Int              @default(1) // 1-28
   nutritionNotes    String           @default("")
   coachNotes        String           @default("") // private to coach
+  healthConsentAt   DateTime? // when the client agreed to health data + photo processing (UK GDPR explicit consent)
   active            Boolean          @default(true)
   createdAt         DateTime         @default(now())
 

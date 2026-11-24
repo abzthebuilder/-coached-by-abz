@@ -61,7 +61,10 @@ export function SiteFooter({ links }: { links: SiteLinks }) {
         <CtaButtons links={links} stacked />
       </div>
       <div className="border-t border-line/60 py-5 text-center text-xs text-faint">
-        © {new Date().getFullYear()} Coached by ABZ
+        © {new Date().getFullYear()} Coached by ABZ ·{" "}
+        <Link href="/privacy" className="underline underline-offset-4 hover:text-bone">
+          Privacy policy
+        </Link>
       </div>
     </footer>
   );

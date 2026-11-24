@@ -44,12 +44,14 @@ try {
     const p = await coachCtx.newPage();
     await p.goto("/");
     for (const n of ["Apply for Online Coaching", "Client Login"]) assert.ok(await p.getByRole("link", { name: n }).first().isVisible(), n);
-    for (const u of ["/", "/coaching", "/about", "/get-started"]) {
+    for (const u of ["/", "/coaching", "/about", "/get-started", "/privacy"]) {
       await p.goto(u);
       const text = await p.locator("body").innerText();
       assert.ok(!/£|€|\$\d|per month|per week|pricing|package/i.test(text), `no pricing on ${u}`);
       assert.ok(!/personal training|PT consultation|calendly/i.test(text), `no personal training on ${u}`);
     }
+    await p.goto("/privacy");
+    assert.ok(await p.getByRole("link", { name: "ablofe1@gmail.com" }).first().isVisible(), "privacy contact shown");
     await p.close();
   });
 
@@ -68,9 +70,12 @@ try {
       await p.goto(link.replace(/^https?:\/\/[^/]+/, base));
       await p.getByLabel("Password", { exact: true }).fill(clients[k].password);
       await p.getByLabel("Confirm password").fill(clients[k].password);
+      await p.getByRole("checkbox").check(); // privacy + health data consent
       await p.getByRole("button", { name: "Create my account" }).click();
       await p.waitForURL(/\/app/);
       assert.ok(await p.getByText("You're in.").isVisible());
+      const prof = await db.clientProfile.findFirst({ where: { user: { email: clients[k].email } } });
+      assert.ok(prof?.healthConsentAt instanceof Date, "consent date recorded");
       clients[k].ctx = ctx; clients[k].page = p;
       // invite link is single-use
       const p2 = await (await phone()).newPage();

@@ -482,6 +482,11 @@ function ProfileView({ profile }: { profile: Awaited<ReturnType<typeof requireCo
       </Card>
       <Card className="h-fit">
         <CardTitle eyebrow="Account" title="Password reset" />
+        <p className="mb-3 text-sm text-mute">
+          {profile.healthConsentAt
+            ? `Agreed to the privacy policy and health data consent on ${fmtDay(profile.healthConsentAt.toISOString().slice(0, 10), { year: true })}.`
+            : "No consent recorded (account created before the consent box was added)."}
+        </p>
         <p className="mb-3 text-sm text-mute">Forgot their password? Create a one-time reset link and send it to them.</p>
         <LinkActionForm action={createResetLinkAction} submitLabel="Create reset link" name={profile.user.name}>
           <input type="hidden" name="clientId" value={profile.id} />

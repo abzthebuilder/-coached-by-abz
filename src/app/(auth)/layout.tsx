@@ -9,7 +9,12 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <Logo className="text-xl" />
         </Link>
       </div>
-      <main className="mx-auto w-full max-w-md flex-1 pb-16 pt-6">{children}</main>
+      <main className="mx-auto w-full max-w-md flex-1 pb-10 pt-6">{children}</main>
+      <footer className="pb-8 text-center text-xs text-faint">
+        <Link href="/privacy" className="underline underline-offset-4 hover:text-bone">
+          Privacy policy
+        </Link>
+      </footer>
     </div>
   );
 }

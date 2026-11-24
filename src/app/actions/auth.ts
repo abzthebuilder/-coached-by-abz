@@ -62,6 +62,8 @@ export async function acceptInviteAction(_: FormState, fd: FormData): Promise<Fo
   const pwErr = passwordProblem(password);
   if (pwErr) return { error: pwErr };
   if (password !== confirm) return { error: "The passwords don't match." };
+  if (fd.get("consent") !== "on")
+    return { error: "Please tick the box to agree to the privacy policy. I can't coach you without storing your progress." };
   if (await db.user.findUnique({ where: { email: invite.email } }))
     return { error: "An account with this email already exists. Try logging in." };
 
@@ -76,7 +78,7 @@ export async function acceptInviteAction(_: FormState, fd: FormData): Promise<Fo
         passwordHash,
         role: "CLIENT",
         timezone: tz,
-        clientProfile: { create: { coachId: invite.coachId, startDay: todayIn(tz) } },
+        clientProfile: { create: { coachId: invite.coachId, startDay: todayIn(tz), healthConsentAt: new Date() } },
       },
     });
   });
