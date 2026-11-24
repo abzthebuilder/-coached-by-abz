@@ -1,0 +1,50 @@
+{
+  "name": "coached-by-abz",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "prisma migrate deploy && next start",
+    "lint": "tsc --noEmit",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts",
+    "create-coach": "tsx scripts/create-coach.ts",
+    "test": "vitest run",
+    "test:e2e": "node tests/e2e/run.mjs",
+    "screenshots": "node tests/e2e/shots.mjs screenshots"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1167.0",
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^18.0.10",
+    "fflate": "^0.8.3",
+    "next": "^16.4.6",
+    "pg": "^8.23.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "server-only": "^0.0.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.13",
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "prisma": "^7.10.1",
+    "tailwindcss": "^4.1.13",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^5.1.0"
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "overrides": {
+    "effect": "3.22.5"
+  }
+}
