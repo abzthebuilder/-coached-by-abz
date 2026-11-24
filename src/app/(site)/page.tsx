@@ -121,12 +121,10 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Photo strip: only the photos that have been added */}
-      {[photos.strip1, photos.strip2, photos.strip3].some(hasPhoto) && (
-        <section className="mx-auto grid max-w-6xl grid-cols-3 gap-2 px-4 pt-14">
-          {[photos.strip1, photos.strip2, photos.strip3].filter(hasPhoto).map((ph) => (
-            <GymPhoto key={ph.file} photo={ph} className="aspect-square" sizes="33vw" />
-          ))}
+      {/* Wide photo */}
+      {hasPhoto(photos.banner) && (
+        <section className="mx-auto max-w-6xl px-4 pt-14">
+          <GymPhoto photo={photos.banner} className="aspect-[4/5] sm:aspect-[3/2]" sizes="(min-width: 1152px) 1152px, 100vw" />
         </section>
       )}
 

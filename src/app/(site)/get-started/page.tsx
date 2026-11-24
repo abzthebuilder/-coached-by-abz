@@ -1,6 +1,6 @@
-import { CtaButtons } from "@/components/site-chrome";
+import { CtaButtons, GymPhoto } from "@/components/site-chrome";
 import { getSiteLinks } from "@/lib/settings";
-import { steps } from "@/content/site";
+import { photos, steps } from "@/content/site";
 
 export const metadata = { title: "Get started" };
 
@@ -15,6 +15,7 @@ export default async function GetStarted() {
         Personal training starts with a consultation so we can meet, talk through what you want and plan your first
         sessions.
       </p>
+      <GymPhoto photo={photos.banner} optional priority className="mt-8 aspect-[4/5] sm:aspect-[3/2]" sizes="(min-width: 768px) 768px, 100vw" />
       <ol className="mt-10 space-y-4">
         {steps.map((s) => (
           <li key={s.n} className="flex gap-4 rounded-2xl border border-line/70 bg-char p-5">

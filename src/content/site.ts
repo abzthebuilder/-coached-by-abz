@@ -1,17 +1,15 @@
 // All public-site wording lives here so it can be edited without touching layout code.
-// Gym photos: drop your own files into /public/images using the file names below.
-// If a file is missing the site shows a branded panel instead, so nothing breaks.
+// Gym photos live in /public/images under the file names below.
+// If a photo is missing, the hero and story show a branded panel; other spots are simply hidden.
 
 export type Photo = { file: string; alt: string; position?: string };
 
-export const photos: Record<"hero" | "about" | "online" | "pt" | "strip1" | "strip2" | "strip3", Photo> = {
+export const photos: Record<"hero" | "about" | "online" | "pt" | "banner", Photo> = {
   hero: { file: "hero.jpg", alt: "ABZ doing cable curls in the gym", position: "50% 40%" },
   about: { file: "about.jpg", alt: "ABZ at 15, skinny and just starting out, next to ABZ today" },
-  online: { file: "online.jpg", alt: "Client following an online training plan" },
+  online: { file: "online.jpg", alt: "ABZ loading a plate in the gym", position: "50% 35%" },
   pt: { file: "pt.jpg", alt: "ABZ in the gym", position: "50% 15%" },
-  strip1: { file: "gym-1.jpg", alt: "Training in the gym" },
-  strip2: { file: "gym-2.jpg", alt: "Training in the gym" },
-  strip3: { file: "gym-3.jpg", alt: "Training in the gym" },
+  banner: { file: "banner.jpg", alt: "ABZ facing the gym mirror before a session", position: "50% 38%" },
 };
 
 export const hero = {
