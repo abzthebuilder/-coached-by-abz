@@ -58,20 +58,40 @@ export function SiteFooter({ links }: { links: SiteLinks }) {
           <p className="mt-3 max-w-sm text-sm text-mute">
             Online coaching to help you build muscle, lose fat, get stronger and feel more confident.
           </p>
-          {social.instagram && (
-            <a
-              href={`https://instagram.com/${social.instagram}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-gold"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden>
-                <rect x="3" y="3" width="18" height="18" rx="5" />
-                <circle cx="12" cy="12" r="4" />
-                <circle cx="17.5" cy="6.5" r="1" fill="currentColor" />
-              </svg>
-              @{social.instagram}
-            </a>
+          {(social.instagram || social.youtube) && (
+            <div className="mt-4 flex flex-wrap gap-x-6">
+              {social.instagram && (
+                <a
+                  href={`https://www.instagram.com/${social.instagram}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`Instagram: @${social.instagram}`}
+                  className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-gold"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+                    <rect x="3" y="3" width="18" height="18" rx="5" />
+                    <circle cx="12" cy="12" r="4" />
+                    <circle cx="17.5" cy="6.5" r="1" fill="currentColor" />
+                  </svg>
+                  @{social.instagram}
+                </a>
+              )}
+              {social.youtube && (
+                <a
+                  href={`https://www.youtube.com/@${social.youtube}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`YouTube: @${social.youtube}`}
+                  className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-gold"
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+                    <rect x="2.5" y="5.5" width="19" height="13" rx="4" />
+                    <path d="M10 9.2v5.6l4.8-2.8L10 9.2Z" fill="currentColor" stroke="none" />
+                  </svg>
+                  YouTube
+                </a>
+              )}
+            </div>
           )}
         </div>
         <CtaButtons links={links} stacked />
