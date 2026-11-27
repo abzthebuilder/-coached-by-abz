@@ -22,8 +22,8 @@ const { unzipSync, strFromU8 } = require(path.resolve("node_modules/fflate"));
 const EMAIL_LOG = process.env.EMAIL_DEV_LOG;
 const PUSH_LOG = process.env.PUSH_DEV_LOG;
 if (!PUSH_LOG) throw new Error("Set PUSH_DEV_LOG to the same file the server writes notifications to.");
-const pushesTo = (userId) =>
-  fs.existsSync(PUSH_LOG) ? fs.readFileSync(PUSH_LOG, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)).filter((m) => m.userId === userId) : [];
+const readPushes = () => (fs.existsSync(PUSH_LOG) ? fs.readFileSync(PUSH_LOG, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)) : []);
+const pushesTo = (userId) => readPushes().filter((m) => m.userId === userId);
 if (!EMAIL_LOG) throw new Error("Set EMAIL_DEV_LOG to the same file the server writes emails to.");
 const mailsTo = (to) =>
   fs.existsSync(EMAIL_LOG) ? fs.readFileSync(EMAIL_LOG, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)).filter((m) => m.to === to) : [];
@@ -665,6 +665,56 @@ try {
     // The settings card is on the Account page and in Coach settings
     await coach.goto("/coach/settings");
     await coach.getByRole("heading", { name: "Notifications" }).waitFor();
+  });
+
+  await step("Phone notifications: 'Send a test' reports what Apple actually said", async () => {
+    const coachUser = await db.user.findUnique({ where: { email: COACH_EMAIL } });
+    // A phone (Home Screen app) whose browser already holds a subscription with this endpoint.
+    const device = async (endpoint, key) => {
+      const page = await coachCtx.newPage();
+      await page.addInitScript(
+        ({ endpoint, key }) => {
+          Object.defineProperty(navigator, "standalone", { get: () => true });
+          Object.defineProperty(Notification, "permission", { get: () => "granted" });
+          window.__unsubscribed = false;
+          const sub = {
+            endpoint,
+            options: key ? { applicationServerKey: new Uint8Array(key).buffer } : {},
+            toJSON: () => ({ endpoint, expirationTime: null, keys: { p256dh: "B".repeat(87), auth: "A".repeat(22) } }),
+            unsubscribe: async () => (window.__unsubscribed = true),
+          };
+          navigator.serviceWorker.getRegistration = async () => ({ pushManager: { getSubscription: async () => (window.__unsubscribed ? null : sub) } });
+        },
+        { endpoint, key },
+      );
+      await page.goto("/coach/settings");
+      return page;
+    };
+    const ok = await device(`https://push.example.test/coach-test-${run}`);
+    await ok.getByRole("button", { name: "Send a test" }).click();
+    await ok.getByText("Sent, and push.example.test accepted it.").waitFor();
+    await until(async () => readPushes().some((p) => p.endpoint === `https://push.example.test/coach-test-${run}` && p.body === "Notifications are working. 💪"));
+    assert.ok(!readPushes().some((p) => p.endpoint === `https://push.example.test/coach-${run}` && p.tag === "test"), "test goes to this device only");
+    await ok.close();
+
+    const refused = await device(`https://web.push.apple.com/refused/${run}`);
+    await refused.getByRole("button", { name: "Send a test" }).click();
+    await refused.getByText("Not delivered: Apple said “BadJwtToken” (403).").waitFor();
+    await refused.close();
+
+    const expired = await device(`https://web.push.apple.com/expired/${run}`);
+    await expired.getByRole("button", { name: "Send a test" }).click();
+    await expired.getByText("notification address had expired").waitFor();
+    await expired.getByRole("button", { name: "Turn on notifications" }).waitFor();
+    assert.equal(await db.pushSubscription.count({ where: { endpoint: `https://web.push.apple.com/expired/${run}` } }), 0);
+
+    // A subscription made with an old key is cleared, ready to turn on again.
+    await db.pushSubscription.create({ data: { userId: coachUser.id, endpoint: `https://web.push.apple.com/oldkey/${run}`, p256dh: "B".repeat(87), auth: "A".repeat(22) } });
+    const oldKey = await device(`https://web.push.apple.com/oldkey/${run}`, Array.from({ length: 65 }, () => 7));
+    await oldKey.getByRole("button", { name: "Turn on notifications" }).waitFor();
+    assert.equal(await oldKey.evaluate(() => window.__unsubscribed), true);
+    await until(async () => (await db.pushSubscription.count({ where: { endpoint: `https://web.push.apple.com/oldkey/${run}` } })) === 0);
+    await oldKey.close();
   });
 
   await step("Isolation: client B cannot see or touch client A's records or photos", async () => {

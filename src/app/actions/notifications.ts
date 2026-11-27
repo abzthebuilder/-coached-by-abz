@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { sendPush } from "@/lib/push";
+import { pushService, sendPush } from "@/lib/push";
 
 const subSchema = z.object({
   endpoint: z.string().url().max(1000).refine((u) => u.startsWith("https://"), "Push address must be https"),
@@ -32,16 +32,30 @@ export async function removePushSubscriptionAction(endpoint: string): Promise<Re
   return { ok: true };
 }
 
-export async function sendTestPushAction(): Promise<Result> {
+type TestResult = { ok: true; message: string } | { ok: false; error: string; expired?: boolean };
+
+/** Sends a test to this device (or all of this person's devices) and reports what the push service said. */
+export async function sendTestPushAction(endpoint?: string): Promise<TestResult> {
   const user = await requireUser();
-  const count = await db.pushSubscription.count({ where: { userId: user.id } });
-  if (!count) return { ok: false, error: "Notifications aren't on for any of your devices yet." };
-  await sendPush([{ userId: user.id, url: user.role === "COACH" ? "/coach" : "/app" }], {
-    title: "Coached by ABZ",
-    body: "Notifications are working. 💪",
-    tag: "test",
-  });
-  return { ok: true };
+  const where = { userId: user.id, ...(typeof endpoint === "string" && endpoint ? { endpoint } : {}) };
+  if (!(await db.pushSubscription.count({ where })))
+    return { ok: false, error: "Notifications aren't on for this device yet. Tap Turn off, then turn them on again." };
+  const out = await sendPush(
+    [{ userId: user.id, url: user.role === "COACH" ? "/coach" : "/app" }],
+    { title: "Coached by ABZ", body: "Notifications are working. 💪", tag: "test" },
+    { endpoint: where.endpoint },
+  );
+  if (out.sent > 0) {
+    const service = endpoint ? pushService(endpoint) : "the push service";
+    return { ok: true, message: `Sent, and ${service} accepted it. It should arrive in a few seconds.` };
+  }
+  if (out.removed > 0)
+    return { ok: false, expired: true, error: "This device's notification address had expired. Tap Turn on notifications to set it up again." };
+  const f = out.failed[0];
+  return {
+    ok: false,
+    error: f ? `Not delivered: ${f.service} said “${f.reason}”${f.status ? ` (${f.status})` : ""}.` : "Not delivered. Try again in a minute.",
+  };
 }
 
 export async function setCommunityNotifyAction(value: string): Promise<Result> {

@@ -16,6 +16,20 @@ function keyBytes(base64: string) {
   return Uint8Array.from(raw, (c) => c.charCodeAt(0));
 }
 
+/** True when this subscription was made with the site's current key (an old one would be refused). */
+function madeWithKey(sub: PushSubscription, publicKey: string) {
+  const key = sub.options?.applicationServerKey;
+  if (!key) return true; // the browser doesn't say: assume it's fine
+  const a = new Uint8Array(key);
+  const b = keyBytes(publicKey);
+  return a.length === b.length && a.every((v, i) => v === b[i]);
+}
+
+async function currentSubscription() {
+  const reg = await navigator.serviceWorker.getRegistration("/");
+  return (await reg?.pushManager.getSubscription()) ?? null;
+}
+
 async function registration() {
   const reg = await navigator.serviceWorker.register("/sw.js");
   await navigator.serviceWorker.ready;
@@ -49,9 +63,12 @@ export function NotificationsCard({
         if (ios && !standalone) return setState("ios-install");
         if (!supported) return setState("unsupported");
         if (Notification.permission === "denied") return setState("denied");
-        const reg = await navigator.serviceWorker.getRegistration("/");
-        const sub = await reg?.pushManager.getSubscription();
-        if (sub) {
+        const sub = await currentSubscription();
+        if (sub && !madeWithKey(sub, publicKey)) {
+          // Made with an old key: notifications to it would be refused, so start again.
+          await removePushSubscriptionAction(sub.endpoint);
+          await sub.unsubscribe().catch(() => false);
+        } else if (sub) {
           await savePushSubscriptionAction(sub.toJSON()); // keeps the server's copy up to date
           return setState("on");
         }
@@ -72,15 +89,19 @@ export function NotificationsCard({
         return;
       }
       const reg = await registration();
-      const sub =
-        (await reg.pushManager.getSubscription()) ??
-        (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) }));
+      let sub = await reg.pushManager.getSubscription();
+      if (sub && !madeWithKey(sub, publicKey)) {
+        await sub.unsubscribe().catch(() => false);
+        sub = null;
+      }
+      sub ??= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) });
       const res = await savePushSubscriptionAction(sub.toJSON());
       if (!res.ok) throw new Error(res.error);
       setState("on");
       setMsg("Notifications are on for this device.");
-    } catch {
-      setMsg("Notifications couldn't be turned on. Try again, or check your phone's settings.");
+    } catch (e) {
+      const why = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+      setMsg(`Notifications couldn't be turned on. Try again, or check your phone's settings. (${why.slice(0, 120)})`);
     } finally {
       setBusy(false);
     }
@@ -90,8 +111,7 @@ export function NotificationsCard({
     setBusy(true);
     setMsg("");
     try {
-      const reg = await navigator.serviceWorker.getRegistration("/");
-      const sub = await reg?.pushManager.getSubscription();
+      const sub = await currentSubscription();
       if (sub) {
         await removePushSubscriptionAction(sub.endpoint);
         await sub.unsubscribe();
@@ -104,9 +124,28 @@ export function NotificationsCard({
   }
 
   async function test() {
+    setBusy(true);
     setMsg("");
-    const res = await sendTestPushAction();
-    setMsg(res.ok ? "Test sent. It should arrive in a few seconds." : res.error);
+    try {
+      const sub = await currentSubscription();
+      if (!sub) {
+        setState("off");
+        setMsg("Notifications aren't set up on this device any more. Tap Turn on notifications.");
+        return;
+      }
+      await savePushSubscriptionAction(sub.toJSON());
+      const res = await sendTestPushAction(sub.endpoint);
+      if (res.ok) return setMsg(res.message);
+      if (res.expired) {
+        await sub.unsubscribe().catch(() => false);
+        setState("off");
+      }
+      setMsg(res.error);
+    } catch (e) {
+      setMsg(`The test couldn't be sent. (${e instanceof Error ? e.message.slice(0, 120) : "unknown error"})`);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function choose(v: "all" | "coach" | "off") {
@@ -159,8 +198,8 @@ export function NotificationsCard({
       )}
       {state === "on" && (
         <div className="grid grid-cols-2 gap-2">
-          <button type="button" onClick={test} className="min-h-12 rounded-xl border border-line font-semibold">
-            Send a test
+          <button type="button" onClick={test} disabled={busy} className="min-h-12 rounded-xl border border-line font-semibold disabled:opacity-50">
+            {busy ? "Sending…" : "Send a test"}
           </button>
           <button type="button" onClick={turnOff} disabled={busy} className="min-h-12 rounded-xl border border-line text-sm text-mute">
             Turn off
