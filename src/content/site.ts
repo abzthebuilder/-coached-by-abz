@@ -65,9 +65,10 @@ export const services = {
     points: [
       "A training plan built for your goal, your equipment and how many days you can train",
       "Calorie, protein, carb and fat targets, plus a daily step goal",
-      "Your own app to log workouts, food totals and steps",
+      "Your own app to log workouts, food (with barcode scanning) and steps",
       "Weekly or monthly check-ins with a personal reply from me",
       "Your plan adjusted as you progress, so you don't stall",
+      "Access to the private client community: a group chat with me and other clients to share wins, ask questions and stay motivated",
     ],
   },
 };
@@ -89,5 +90,9 @@ export const faqs = [
   { q: "I'm a complete beginner. Is this for me?", a: "Yes. Every exercise comes with coaching notes, and we build up at your pace." },
   { q: "Do I need a gym?", a: "A gym gives you the most options, but I started out training in a park, so plans can be written around home, outdoor or limited equipment. Tell me what you've got when you apply." },
   { q: "Will I have to give up foods I enjoy?", a: "No. You get targets, not a banned list. We fit the foods you like into a plan you can keep up." },
+  {
+    q: "Is there a community?",
+    a: "Yes. Clients can join a private group chat in the app with me and other clients, to share wins, ask questions and keep each other going. It's for clients only and it's optional. Your logs, photos and check-ins always stay private.",
+  },
   { q: "How do check-ins work?", a: "You fill in a short form in the app every week or month covering weight, sleep, energy, training, nutrition, wins and struggles. I reply personally." },
 ];
