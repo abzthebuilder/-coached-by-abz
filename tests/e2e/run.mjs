@@ -53,6 +53,26 @@ async function fillApplication(page, who) {
   await page.locator('input[name="consent"]').check();
 }
 let leadId;
+const until = async (fn, ms = 15000) => {
+  const t = Date.now();
+  while (Date.now() - t < ms) {
+    if (await fn()) return;
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  throw new Error("timed out waiting");
+};
+async function joinCommunity(page, name) {
+  await page.goto("/app/community");
+  await page.getByLabel("Name other members will see").fill(name);
+  await page.locator('input[name="agree"]').check();
+  await page.getByRole("button", { name: "Join the community" }).click();
+  await page.getByLabel("Message", { exact: true }).waitFor();
+}
+async function sendChat(page, text) {
+  await page.getByLabel("Message", { exact: true }).fill(text);
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await page.getByText(text).first().waitFor();
+}
 const todayLondon = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
 
 const base = process.env.BASE_URL || "http://localhost:3000";
@@ -474,6 +494,74 @@ try {
     assert.equal(await db.lead.count({ where: { id: spam.id } }), 0);
   });
 
+  await step("Community chat: clients opt in, chat, react and report; coach pins, deletes and removes; leaving deletes messages", async () => {
+    const aName = `Alpha-${run}`, bName = `Bravo-${run}`;
+    const aMsg = `First workout done this week ${run}`, bMsg = `Bravo says hi ${run}`;
+    assert.equal((await A.request.get("/api/community")).status(), 404, "can't read before joining");
+    await A.goto("/app");
+    await A.getByRole("link", { name: /Join the group chat/ }).click();
+    await A.waitForURL(/\/app\/community/);
+    await A.getByText("Your logs, photos and check-ins always stay private").waitFor();
+    await joinCommunity(A, aName);
+    await sendChat(A, aMsg);
+
+    // B joins, sees A's message, reacts; A sees the reaction appear without refreshing.
+    await joinCommunity(B, bName);
+    await B.getByText(aMsg).waitFor();
+    await B.getByRole("button", { name: new RegExp(`Message from ${aName}`) }).click();
+    await B.getByRole("button", { name: "React 💪" }).click();
+    await A.getByRole("button", { name: "💪 1" }).waitFor({ timeout: 15000 });
+    // B reports it to the coach
+    B.once("dialog", (d) => d.accept());
+    await B.getByRole("button", { name: new RegExp(`Message from ${aName}`) }).click();
+    await B.getByRole("button", { name: "Report", exact: true }).click();
+    await until(async () => (await db.communityReport.count({ where: { message: { body: aMsg } } })) === 1);
+
+    // Coach sees unread messages, posts and pins an announcement
+    await coach.goto("/coach");
+    await coach.getByRole("link", { name: /Community, \d+ unread/ }).click();
+    await coach.waitForURL(/\/coach\/community/);
+    await coach.getByText(aMsg).waitFor();
+    await sendChat(coach, `Welcome everyone! Post your wins here ${run}`);
+    await coach.getByRole("button", { name: /Message from you/ }).last().click();
+    await coach.getByRole("button", { name: "Pin", exact: true }).click();
+    await A.getByText(/Pinned by/).waitFor({ timeout: 15000 });
+
+    // Coach deletes the reported message from the Reports tab; it disappears for A
+    await coach.goto("/coach/community?tab=reports");
+    await coach.getByText(aMsg).waitFor();
+    await coach.getByRole("button", { name: "Delete message" }).click();
+    await until(async () => (await db.communityMessage.count({ where: { body: aMsg } })) === 0);
+    await A.getByText(aMsg).waitFor({ state: "detached", timeout: 15000 });
+
+    // Coach removes B: B can no longer read; then allows B back
+    await sendChat(B, bMsg);
+    await coach.goto("/coach/community?tab=members");
+    await coach.locator("li").filter({ hasText: bName }).getByRole("button", { name: "Remove" }).click();
+    await coach.locator("li").filter({ hasText: bName }).getByRole("button", { name: "Allow back" }).waitFor();
+    assert.equal((await B.request.get("/api/community")).status(), 404, "removed member can't read");
+    await B.goto("/app/community");
+    await B.getByText("You've been removed from the community").waitFor();
+    await coach.locator("li").filter({ hasText: bName }).getByRole("button", { name: "Allow back" }).click();
+    await coach.locator("li").filter({ hasText: bName }).getByRole("button", { name: "Remove" }).waitFor();
+    assert.equal((await B.request.get("/api/community")).status(), 200, "allowed back");
+
+    // A client who never joined can't read it
+    assert.equal((await clients.C.page.request.get("/api/community")).status(), 404, "non-member can't read");
+
+    // A leaves: their messages and reactions are deleted
+    await A.goto("/app/community");
+    await sendChat(A, `Leaving soon ${run}`);
+    await A.getByText("Settings", { exact: true }).click();
+    await A.getByRole("button", { name: "Leave and delete my messages" }).click();
+    await A.waitForURL(/left=1/);
+    await A.getByText("You've left the community").waitFor();
+    const aUser = await db.user.findUnique({ where: { email: clients.A.email } });
+    assert.equal(await db.communityMessage.count({ where: { authorId: aUser.id } }), 0, "A's messages deleted");
+    assert.equal(await db.communityReaction.count({ where: { userId: aUser.id } }), 0);
+    assert.equal(await db.communityMember.count({ where: { userId: aUser.id } }), 0);
+  });
+
   await step("Isolation: client B cannot see or touch client A's records or photos", async () => {
     const photo = await db.progressPhoto.findFirst({ where: { clientId: profA.id } });
     const ci = await db.checkIn.findFirst({ where: { clientId: profA.id } });
@@ -534,6 +622,10 @@ try {
     assert.ok(!(await p.content()).includes(clients.A.name), "not in other coach's roster");
     assert.equal((await p.goto(`/coach/clients/${profA.id}`)).status(), 404);
     assert.equal((await p.goto(`/coach/leads/${leadId}`)).status(), 404, "another coach can't open the application");
+    const otherChat = await (await p.request.get("/api/community")).json();
+    assert.equal(otherChat.messages.length, 0, "another coach's community is separate");
+    await p.goto("/coach/community");
+    assert.ok(!(await p.content()).includes(`Bravo says hi ${run}`), "our community messages not visible to another coach");
     assert.ok(!(await (await p.goto("/coach/leads")).text()).includes(clients.C.name), "not in another coach's leads");
     const photo = await db.progressPhoto.findFirst({ where: { clientId: profA.id } });
     assert.equal((await p.request.get(`/api/photos/${photo.id}`)).status(), 404);
@@ -569,6 +661,7 @@ try {
     assert.equal(b.json.account.email, clients.B.email);
     assert.ok(b.text("daily-log.csv").includes(",777"), "B's steps in the spreadsheet");
     assert.ok(!JSON.stringify(b.json).includes(clients.A.email), "nothing of A's in B's export");
+    assert.ok(b.json.community.messages.some((m) => m.message === `Bravo says hi ${run}`), "B's community messages in B's export");
     const a = await unzip(await A.request.get("/api/export/me"));
     assert.ok(a.json.checkIns.some((c) => c.wins.includes(run)), "A's check-in included");
     assert.ok(a.json.checkIns[0].replies.some((r) => r.message.includes("Great week")), "coach reply included");
@@ -671,6 +764,7 @@ try {
   const photos = await db.progressPhoto.findMany({ where: { client: { user: { email: emails } } } });
   for (const ph of photos) fs.rmSync(path.join(storageRoot, ph.storageKey), { force: true });
   await db.lead.deleteMany({ where: { email: emails } });
+  await db.communityMessage.deleteMany({ where: { body: { contains: run } } }); // the coach's test messages
   await db.user.deleteMany({ where: { email: emails, role: "CLIENT" } });
   await db.user.deleteMany({ where: { email: emails } });
   await db.$disconnect();

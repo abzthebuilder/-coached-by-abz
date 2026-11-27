@@ -61,6 +61,12 @@ export const termsSections: TermsSection[] = [
     ],
   },
   {
+    heading: "Community chat",
+    paragraphs: [
+      "Joining the community chat is optional. If you join, please follow the community rules shown in the app. Anything shared there is between members: it isn't advice from a medical professional, and ABZ isn't responsible for what other members post. ABZ can delete messages and remove anyone from the community who breaks the rules.",
+    ],
+  },
+  {
     heading: "Results",
     paragraphs: [
       "Everyone's body and circumstances are different, and results depend on a lot of things, including how consistently you follow the plan. I'll always do my best for you, but I can't guarantee specific results.",

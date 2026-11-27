@@ -77,6 +77,13 @@ model User {
   tokens         AuthToken[]      @relation("TokenCreator")
   replies        CheckInReply[]
   leads          Lead[]           @relation("CoachLeads")
+
+  communityMember    CommunityMember?    @relation("CommunityMember")
+  communityMembers   CommunityMember[]   @relation("CommunityOwner")
+  communityOwned     CommunityMessage[]  @relation("CommunityOwner")
+  communityMessages  CommunityMessage[]  @relation("CommunityAuthor")
+  communityReactions CommunityReaction[]
+  communityReports   CommunityReport[]
 }
 
 model Session {
@@ -426,4 +433,56 @@ model Lead {
 
   @@index([coachId, status])
   @@index([email])
+}
+
+/// One member of a coach's community chat. Clients join by choice; the coach is added automatically.
+model CommunityMember {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  user        User      @relation("CommunityMember", fields: [userId], references: [id], onDelete: Cascade)
+  coachId     String // whose community
+  coach       User      @relation("CommunityOwner", fields: [coachId], references: [id], onDelete: Cascade)
+  displayName String
+  joinedAt    DateTime  @default(now())
+  lastReadAt  DateTime  @default(now())
+  removedAt   DateTime? // removed by the coach: can't read or post
+
+  @@index([coachId])
+}
+
+model CommunityMessage {
+  id        String              @id @default(cuid())
+  coachId   String
+  coach     User                @relation("CommunityOwner", fields: [coachId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User                @relation("CommunityAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  body      String
+  pinnedAt  DateTime?
+  createdAt DateTime            @default(now())
+  reactions CommunityReaction[]
+  reports   CommunityReport[]
+
+  @@index([coachId, createdAt])
+}
+
+model CommunityReaction {
+  id        String           @id @default(cuid())
+  messageId String
+  message   CommunityMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji     String
+
+  @@unique([messageId, userId, emoji])
+}
+
+model CommunityReport {
+  id         String           @id @default(cuid())
+  messageId  String
+  message    CommunityMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  reporterId String
+  reporter   User             @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  createdAt  DateTime         @default(now())
+
+  @@unique([messageId, reporterId])
 }

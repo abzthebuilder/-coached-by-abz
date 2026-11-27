@@ -57,6 +57,14 @@ their goal is pre-filled, and it's included in their data download and deleted w
 never become clients are deleted automatically after 12 months (hourly job; `scripts/run-reminders.ts`).
 Wording and questions: `src/content/apply.ts`.
 
+## Community chat
+
+One optional group chat per coach (`/app/community`, `/coach/community`). Clients opt in, choose the
+name others see and agree to the rules (`src/content/community.ts`). Text messages, reactions, one
+pinned message, unread badges; the chat refreshes every few seconds. Members can delete their own
+messages and report others'; the coach can delete any message, pin, review reports and remove or
+re-admit members. Leaving deletes the member's messages. Only members (and the coach) can read it.
+
 ## Food diary
 
 Clients log food by meal on **Nutrition**: search, scan a barcode with the phone camera, create a food

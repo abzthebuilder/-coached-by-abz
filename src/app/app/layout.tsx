@@ -4,6 +4,8 @@ import { logoutAction } from "@/app/actions/auth";
 import { BottomNav, SideNav } from "@/components/portal-nav";
 import { Logo } from "@/components/ui";
 import { db } from "@/lib/db";
+import { unreadCount } from "@/lib/community";
+import { CommunityLink } from "@/components/community-link";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +17,7 @@ export default async function ClientLayout({ children }: { children: React.React
     orderBy: { createdAt: "desc" },
     include: { replies: { orderBy: { createdAt: "desc" }, take: 1 } },
   });
+  const unread = await unreadCount(user.id);
   const unreadReply = !!latest?.replies[0] && latest.replies[0].authorId !== user.id;
   const items = [
     { href: "/app", label: "Today", icon: "today" as const },
@@ -31,6 +34,7 @@ export default async function ClientLayout({ children }: { children: React.React
             <Logo className="text-lg" />
           </Link>
           <div className="flex items-center gap-1">
+            <CommunityLink href="/app/community" unread={unread} />
             <Link href="/app/account" className="flex min-h-11 items-center px-2 text-sm text-mute hover:text-bone">
               Account
             </Link>

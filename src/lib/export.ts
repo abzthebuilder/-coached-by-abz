@@ -18,6 +18,11 @@ function csv(rows: (string | number | null | undefined)[][]): string {
 }
 
 export async function buildClientExport(clientId: string): Promise<{ zip: Uint8Array; filename: string }> {
+  const owner = await db.clientProfile.findUniqueOrThrow({ where: { id: clientId }, select: { userId: true } });
+  const [communityMember, communityMessages] = await Promise.all([
+    db.communityMember.findUnique({ where: { userId: owner.userId } }),
+    db.communityMessage.findMany({ where: { authorId: owner.userId }, orderBy: { createdAt: "asc" } }),
+  ]);
   const p = await db.clientProfile.findUniqueOrThrow({
     where: { id: clientId },
     include: {
@@ -109,6 +114,13 @@ export async function buildClientExport(clientId: string): Promise<{ zip: Uint8A
           heardFrom,
           consentAt,
         }))(p.lead)
+      : null,
+    community: communityMember
+      ? {
+          displayName: communityMember.displayName,
+          joinedAt: communityMember.joinedAt,
+          messages: communityMessages.map((m) => ({ at: m.createdAt, message: m.body })),
+        }
       : null,
     foodDiary: p.foodEntries.map(({ day, meal, name, brand, amount, unit, kcal, proteinG, carbsG, fatG }) => ({ day, meal, name, brand, amount, unit, kcal, proteinG, carbsG, fatG })),
     myFoods: p.foods.map(({ name, brand, barcode, unit, kcal, proteinG, carbsG, fatG, servingG, servingLabel }) => ({ name, brand, barcode, per100: unit, kcal, proteinG, carbsG, fatG, servingG, servingLabel })),

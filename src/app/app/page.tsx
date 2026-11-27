@@ -8,6 +8,8 @@ import { tasksForToday } from "@/lib/tasks";
 import { mean } from "@/lib/metrics";
 import { toggleTaskAction } from "@/app/actions/client";
 import { QuickActions } from "@/components/quick-actions";
+import { unreadCount } from "@/lib/community";
+import { COMMUNITY_TAGLINE } from "@/content/community";
 import { HomeScreenTip } from "@/components/home-screen-tip";
 import { Badge, ButtonLink, Card, CardTitle, Empty, cx, fmtNum } from "@/components/ui";
 
@@ -37,6 +39,8 @@ export default async function Today({ searchParams }: { searchParams: Promise<{ 
   const stepAvg = mean(points.map((p) => p.steps));
   const hour = Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hour12: false, timeZone: user.timezone }).format(new Date()));
   const greeting = hour < 12 ? "Morning" : hour < 18 ? "Afternoon" : "Evening";
+  const communityMember = await db.communityMember.findUnique({ where: { userId: user.id } });
+  const communityUnread = communityMember && !communityMember.removedAt ? await unreadCount(user.id) : 0;
   const awaitingReply = last && (await db.checkInReply.count({ where: { checkInId: last.id } })) === 0;
 
   return (
@@ -215,6 +219,26 @@ export default async function Today({ searchParams }: { searchParams: Promise<{ 
           Submit Check-in
         </ButtonLink>
       </Card>
+
+      {/* Community */}
+      {!communityMember?.removedAt && (
+        <Link href="/app/community" className="flex min-h-16 items-center justify-between gap-3 rounded-2xl border border-line/70 bg-char p-4">
+          <div>
+            <div className="eyebrow mb-0.5">Community</div>
+            <div className="font-semibold">
+              {communityMember
+                ? communityUnread
+                  ? `${communityUnread} new message${communityUnread > 1 ? "s" : ""}`
+                  : "Open the group chat"
+                : "Join the group chat"}
+            </div>
+            {!communityMember && <div className="text-sm text-mute">{COMMUNITY_TAGLINE}</div>}
+          </div>
+          <span className="shrink-0 text-gold" aria-hidden>
+            →
+          </span>
+        </Link>
+      )}
     </div>
   );
 }

@@ -20,6 +20,7 @@ export const privacySections: PrivacySection[] = [
       "When you apply: what you enter in the application form, such as your name, email, Instagram username (if you give it), goals, training history and anything you tell me about injuries.",
       "When you become a client: your name, email address and timezone, plus a password. Your password is stored scrambled (hashed), so I can never see it.",
       "What you log in the app: body weight, body measurements, your food diary, calories and macros, steps, workouts (exercises, weights and reps), check-in answers (sleep, energy, how training and nutrition went, wins, struggles and questions) and progress photos.",
+      "If you join the community chat (optional): the name you choose, your messages, reactions and any messages you report.",
       "What I add as your coach: your training plan, nutrition targets, tasks, replies to your check-ins and private notes to help me coach you.",
       "Technical information: one cookie that keeps you logged in, and basic server logs (such as IP addresses) that my hosting provider keeps for security.",
     ],
@@ -43,7 +44,7 @@ export const privacySections: PrivacySection[] = [
   {
     heading: "Who can see it",
     paragraphs: [
-      "Only you and me. Other clients can't see anything about you.",
+      "Only you and me. Other clients can't see anything about you, unless you join the community chat, where members see your chosen name and what you post.",
       "I use two service providers, who handle information only so they can provide their service to me:",
     ],
     bullets: [
@@ -51,6 +52,13 @@ export const privacySections: PrivacySection[] = [
       "If I use Tally (an online forms service) for applications instead of the form on this site, Tally stores what you enter.",
       "Open Food Facts, a free public food database, is used when you search for a food or scan a barcode. Only the words you search for or the barcode number are sent, never your name or anything else about you. Barcode scanning happens on your phone: the camera picture is never uploaded.",
       "Resend sends the app's emails, such as invites, password resets, check-in reminders and reply notifications. These emails never contain your health information, only a link to log in. Resend is a US company, and your email address is protected by its data processing terms.",
+    ],
+  },
+  {
+    heading: "Community chat",
+    paragraphs: [
+      "The community chat is optional. If you join, everyone in it (ABZ and other clients who've joined) can see the name you choose and what you post. Nothing else about you is shared: your logs, photos, check-ins and targets always stay private.",
+      "You can delete your own messages at any time. If you leave, your messages and reactions are deleted. ABZ can delete messages and remove members who break the community rules.",
     ],
   },
   {
