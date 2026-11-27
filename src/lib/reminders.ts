@@ -6,6 +6,7 @@ import { emailEnabled, sendEmail } from "./email";
 import { emails } from "./email-templates";
 import { shouldRemind } from "./reminder-rules";
 import { publicBaseUrl } from "./url";
+import { purgeStaleLeads } from "./maintenance";
 
 function localHour(tz: string, now: Date): number {
   const safe = isValidTimezone(tz) ? tz : DEFAULT_TZ;
@@ -42,7 +43,10 @@ let started = false;
 export function startReminderLoop() {
   if (started) return;
   started = true;
-  const run = () => runCheckInReminders().catch((e) => console.error("Reminder run failed", e));
+  const run = () => {
+    runCheckInReminders().catch((e) => console.error("Reminder run failed", e));
+    purgeStaleLeads().catch((e) => console.error("Lead clean-up failed", e));
+  };
   setTimeout(run, 60_000);
   setInterval(run, 60 * 60_000);
 }

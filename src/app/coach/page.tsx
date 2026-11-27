@@ -20,6 +20,7 @@ function StatusBadge({ r }: { r: RosterRow }) {
 export default async function CoachHome({ searchParams }: { searchParams: Promise<{ deleted?: string }> }) {
   const coach = await requireCoach();
   const { deleted } = await searchParams;
+  const newLeads = await db.lead.count({ where: { coachId: coach.id, status: "NEW" } });
   const [rows, invites] = await Promise.all([
     roster(coach.id),
     db.authToken.findMany({ where: { coachId: coach.id, kind: "INVITE", usedAt: null, expiresAt: { gt: new Date() } }, orderBy: { createdAt: "desc" } }),
@@ -31,6 +32,14 @@ export default async function CoachHome({ searchParams }: { searchParams: Promis
   return (
     <div className="space-y-5">
       <PageHeader eyebrow={`Welcome back, ${coach.name.split(" ")[0]}`} title="Clients" />
+      {newLeads > 0 && (
+        <Link href="/coach/leads" className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-gold/60 bg-gold/10 px-4">
+          <span className="font-semibold text-gold">
+            {newLeads} new application{newLeads > 1 ? "s" : ""}
+          </span>
+          <span className="text-sm text-gold">View →</span>
+        </Link>
+      )}
       {deleted && (
         <div role="status" className="rounded-xl bg-gold/10 p-3 text-sm text-gold">
           {deleted} and all their data have been permanently deleted.

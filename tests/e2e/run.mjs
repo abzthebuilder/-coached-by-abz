@@ -38,6 +38,22 @@ try {
 } catch {
   throw new Error(`Start the food database stub first (node tests/e2e/off-stub.mjs 4010) and run the app with OFF_BASE_URL=${OFF_STUB}`);
 }
+const HEALTH_KEYS = ["heart", "chestPain", "dizziness", "conditions", "injury", "medication", "pregnancy", "eatingDisorder", "other"];
+async function fillApplication(page, who, { injury = false } = {}) {
+  await page.getByLabel("Your name").fill(who.name);
+  await page.getByLabel("Email").fill(who.email);
+  if (who.phone) await page.getByLabel("Phone or WhatsApp (optional)").fill(who.phone);
+  const pick = (name, value) => page.locator(`label:has(input[name="${name}"][value="${value}"])`).click();
+  await pick("goal", "muscle");
+  await page.getByLabel("Tell me about your goals").fill(who.about ?? "Want to get in better shape");
+  await pick("experience", "returning");
+  await pick("daysPerWeek", "4");
+  await pick("trainsAt", "gym");
+  for (const k of HEALTH_KEYS) await pick(`health_${k}`, k === "injury" && injury ? "yes" : "no");
+  await page.locator('input[name="terms"]').check();
+  await page.locator('input[name="consent"]').check();
+}
+let leadId;
 const todayLondon = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
 
 const base = process.env.BASE_URL || "http://localhost:3000";
@@ -70,7 +86,8 @@ try {
     const p = await coachCtx.newPage();
     await p.goto("/");
     for (const n of ["Apply for Online Coaching", "Client Login"]) assert.ok(await p.getByRole("link", { name: n }).first().isVisible(), n);
-    for (const u of ["/", "/coaching", "/about", "/get-started", "/privacy"]) {
+    assert.equal(await p.getByRole("link", { name: "Apply for Online Coaching" }).first().getAttribute("href"), "/apply", "Apply goes to the built-in form");
+    for (const u of ["/", "/coaching", "/about", "/get-started", "/privacy", "/apply"]) {
       await p.goto(u);
       const text = await p.locator("body").innerText();
       assert.ok(!/£|€|\$\d|per month|per week|pricing|package/i.test(text), `no pricing on ${u}`);
@@ -371,6 +388,90 @@ try {
     assert.ok(!note.text.includes("Great week"), "reply text isn't in the email");
   });
 
+  await step("Visitor applies on the site; coach reviews, accepts and invites; they sign up with their application attached", async () => {
+    const C = { name: `Charlie Lead ${run}`, email: `charlie.${run}@test.coachedbyabz.com`, password: "charlie-password-123", phone: "07700 900123", about: `Want to add size before summer ${run}` };
+    clients.C = C;
+    const v = await (await phone()).newPage();
+    await v.goto("/");
+    await v.getByRole("link", { name: "Apply for Online Coaching" }).first().click();
+    await v.waitForURL(/\/apply$/);
+    await fillApplication(v, C, { injury: true });
+    await v.getByRole("button", { name: "Send application" }).click();
+    await v.getByText("You answered yes to a health question").waitFor();
+    assert.equal(await v.getByLabel("Your name").inputValue(), C.name, "answers kept after an error");
+    await v.getByLabel("If you answered yes to any of these, tell me a bit more").fill("Old knee injury, fine now");
+    await v.getByRole("button", { name: "Send application" }).click();
+    await v.getByRole("heading", { name: "Thanks for applying" }).waitFor();
+    const lead = await db.lead.findFirst({ where: { email: C.email } });
+    assert.ok(lead && lead.status === "NEW" && lead.health.injury === true && lead.health.heart === false && lead.consentAt, "application stored");
+    leadId = lead.id;
+    const note = mailsTo(COACH_EMAIL).at(-1);
+    assert.equal(note.subject, `New application from ${C.name}`);
+    assert.ok(!note.text.includes("knee") && !note.text.includes("summer"), "no answers in the email");
+    // A spam bot fills in the hidden field: it looks sent, but nothing is stored.
+    const spamEmail = `spam.${run}@test.coachedbyabz.com`;
+    await v.goto("/apply");
+    await fillApplication(v, { name: "Spam Bot", email: spamEmail });
+    await v.locator('input[name="company"]').evaluate((el) => (el.value = "Buy now Ltd"));
+    await v.getByRole("button", { name: "Send application" }).click();
+    await v.getByRole("heading", { name: "Thanks for applying" }).waitFor();
+    assert.equal(await db.lead.count({ where: { email: spamEmail } }), 0, "spam not stored");
+    await v.context().close();
+
+    // Coach reviews it
+    await coach.goto("/coach");
+    await coach.getByRole("link", { name: /new application/ }).click();
+    await coach.waitForURL(/\/coach\/leads/);
+    await coach.getByRole("link", { name: new RegExp(C.name) }).click();
+    await coach.getByText("Answered yes to 1 question").waitFor();
+    await coach.getByText("Old knee injury, fine now").waitFor();
+    assert.equal(await coach.getByRole("link", { name: "WhatsApp" }).getAttribute("href"), "https://wa.me/447700900123");
+    await coach.getByRole("button", { name: "Contacted", exact: true }).click();
+    await coach.getByRole("button", { name: "Contacted", exact: true, pressed: true }).waitFor();
+    assert.equal((await db.lead.findUnique({ where: { id: leadId } })).status, "CONTACTED");
+    await coach.getByLabel("Notes").fill("Called, starting Monday");
+    await coach.getByRole("button", { name: "Save notes" }).click();
+    await coach.getByText("Notes saved.").waitFor();
+    await coach.getByRole("button", { name: /^Accept Charlie/ }).click();
+    await coach.getByText(`Accepted. Invite emailed to ${C.email}`).waitFor();
+    const link = await coach.getByLabel("Link").inputValue();
+    const invite = mailsTo(C.email).at(-1);
+    assert.ok(invite && linkIn(invite) === link, "invite emailed to the applicant");
+    assert.equal((await db.lead.findUnique({ where: { id: leadId } })).status, "ACCEPTED");
+
+    // They sign up from the invite
+    const p = await (await phone()).newPage();
+    await p.goto(link.replace(/^https?:\/\/[^/]+/, base));
+    await p.getByLabel("Password", { exact: true }).fill(C.password);
+    await p.getByLabel("Confirm password").fill(C.password);
+    await p.locator('input[name="terms"]').check();
+    await p.locator('input[name="consent"]').check();
+    await p.getByRole("button", { name: "Create my account" }).click();
+    await p.waitForURL(/\/app/);
+    const prof = await db.clientProfile.findFirst({ where: { user: { email: C.email } }, include: { lead: true } });
+    assert.equal(prof.goal, "MUSCLE_GAIN", "goal taken from the application");
+    assert.equal(prof.lead?.id, leadId, "application linked to the client");
+    clients.C.page = p;
+    clients.C.profileId = prof.id;
+
+    // Coach sees the application on their profile, and it's in their data download
+    await coach.goto(`/coach/clients/${prof.id}?view=profile`);
+    await coach.getByText("Their application").click();
+    await coach.getByText(C.about).waitFor();
+    const exp = await unzip(await coach.request.get(`/api/export/client/${prof.id}`));
+    assert.equal(exp.json.application.healthAnswers.injury, true);
+
+    // Deleting a spam application that got through
+    const spam = await db.lead.create({
+      data: { coachId: lead.coachId, name: "Junk", email: `junk.${run}@test.coachedbyabz.com`, goal: "fat", experience: "beginner", daysPerWeek: 3, trainsAt: "gym", about: "junk junk junk", health: {}, consentAt: new Date() },
+    });
+    await coach.goto(`/coach/leads/${spam.id}`);
+    await coach.getByText("Delete application").click();
+    await coach.getByRole("button", { name: "Delete permanently" }).click();
+    await coach.waitForURL(/deleted=1/);
+    assert.equal(await db.lead.count({ where: { id: spam.id } }), 0);
+  });
+
   await step("Isolation: client B cannot see or touch client A's records or photos", async () => {
     const photo = await db.progressPhoto.findFirst({ where: { clientId: profA.id } });
     const ci = await db.checkIn.findFirst({ where: { clientId: profA.id } });
@@ -430,6 +531,8 @@ try {
     await login(p, email, "other-coach-pass-1");
     assert.ok(!(await p.content()).includes(clients.A.name), "not in other coach's roster");
     assert.equal((await p.goto(`/coach/clients/${profA.id}`)).status(), 404);
+    assert.equal((await p.goto(`/coach/leads/${leadId}`)).status(), 404, "another coach can't open the application");
+    assert.ok(!(await (await p.goto("/coach/leads")).text()).includes(clients.C.name), "not in another coach's leads");
     const photo = await db.progressPhoto.findFirst({ where: { clientId: profA.id } });
     assert.equal((await p.request.get(`/api/photos/${photo.id}`)).status(), 404);
     assert.equal((await coach.request.get(`/api/photos/${photo.id}`)).status(), 200, "own coach can see photo");
@@ -515,6 +618,12 @@ try {
     await db.clientProfile.update({ where: { id: profB.id }, data: { checkInFrequency: "WEEKLY", checkInWeekday: tomorrowWd, startDay: addDays(T, -30), lastReminderDueDay: null } });
     // Last week's check-in was done, so the next one is due tomorrow.
     await db.checkIn.create({ data: { clientId: profB.id, type: "WEEKLY", day: addDays(T, -6), sleepQuality: 3, energy: 3, trainingRating: 3, nutritionRating: 3 } });
+    // Applications that never became clients are deleted after 12 months; others are kept.
+    const coachId = (await db.user.findUnique({ where: { email: COACH_EMAIL } })).id;
+    const leadBase = { coachId, goal: "fat", experience: "beginner", daysPerWeek: 3, trainsAt: "gym", about: "x".repeat(12), health: {}, consentAt: new Date() };
+    const old = await db.lead.create({ data: { ...leadBase, name: "Old", email: `old.${run}@test.coachedbyabz.com`, createdAt: new Date(Date.now() - 400 * 86400000) } });
+    const recent = await db.lead.create({ data: { ...leadBase, name: "Recent", email: `recent.${run}@test.coachedbyabz.com`, createdAt: new Date(Date.now() - 300 * 86400000) } });
+    await db.lead.update({ where: { id: leadId }, data: { createdAt: new Date(Date.now() - 400 * 86400000) } });
     const runReminders = () =>
       execFileSync("npx", ["tsx", "scripts/run-reminders.ts"], { env: { ...process.env, APP_URL: base, REMINDER_NOW: `${T}T12:00:00Z` }, encoding: "utf8" });
     runReminders();
@@ -524,6 +633,9 @@ try {
     runReminders();
     reminders = mailsTo(clients.B.email).filter((m) => m.subject === "Your check-in is due tomorrow");
     assert.equal(reminders.length, 1, "not sent twice");
+    assert.equal(await db.lead.count({ where: { id: old.id } }), 0, "year-old application deleted");
+    assert.equal(await db.lead.count({ where: { id: recent.id } }), 1, "recent application kept");
+    assert.equal(await db.lead.count({ where: { id: leadId } }), 1, "application of a client kept");
   });
 
   await step("Coach deletes client A permanently: records, photos and logins all gone", async () => {
@@ -556,6 +668,7 @@ try {
   const emails = { contains: `${run}@test.coachedbyabz.com` };
   const photos = await db.progressPhoto.findMany({ where: { client: { user: { email: emails } } } });
   for (const ph of photos) fs.rmSync(path.join(storageRoot, ph.storageKey), { force: true });
+  await db.lead.deleteMany({ where: { email: emails } });
   await db.user.deleteMany({ where: { email: emails, role: "CLIENT" } });
   await db.user.deleteMany({ where: { email: emails } });
   await db.$disconnect();

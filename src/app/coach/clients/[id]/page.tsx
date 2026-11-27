@@ -23,6 +23,7 @@ import {
 import { ProgressDashboard, asTab } from "@/components/progress/dashboard";
 import { CheckInSummary, ReplyThread } from "@/components/checkin-view";
 import { MacroCalculator } from "@/components/macro-calculator";
+import { LeadAnswers } from "@/components/lead-answers";
 import { ExerciseEditor } from "@/components/exercise-editor";
 import { LinkActionForm } from "@/components/invite-form";
 import { ActionForm, SubmitButton } from "@/components/form";
@@ -501,9 +502,26 @@ async function CheckInsView({ clientId, base }: { clientId: string; base: string
   );
 }
 
-function ProfileView({ profile }: { profile: Awaited<ReturnType<typeof requireCoachedClient>>["profile"] }) {
+async function ProfileView({ profile }: { profile: Awaited<ReturnType<typeof requireCoachedClient>>["profile"] }) {
+  const lead = await db.lead.findUnique({ where: { clientId: profile.id } });
   return (
     <div className="grid gap-4 lg:grid-cols-2">
+      {lead && (
+        <Card className="lg:col-span-2">
+          <details>
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3">
+              <span>
+                <span className="eyebrow block">From the website</span>
+                <span className="font-display text-xl uppercase">Their application</span>
+              </span>
+              <span className="text-sm text-gold">Show</span>
+            </summary>
+            <div className="mt-4">
+              <LeadAnswers lead={lead} />
+            </div>
+          </details>
+        </Card>
+      )}
       <Card>
         <CardTitle title="Coaching setup" />
         <ActionForm action={saveProfileAction} className="space-y-3">

@@ -32,6 +32,7 @@ export async function buildClientExport(clientId: string): Promise<{ zip: Uint8A
       tasks: { orderBy: { createdAt: "asc" }, include: { completions: { orderBy: { day: "asc" } } } },
       foodEntries: { orderBy: [{ day: "asc" }, { createdAt: "asc" }] },
       foods: { orderBy: { createdAt: "asc" } },
+      lead: true,
     },
   });
 
@@ -90,6 +91,24 @@ export async function buildClientExport(clientId: string): Promise<{ zip: Uint8A
     })),
     measurements: p.measurements.map(({ day, chestCm, waistCm, hipsCm, armCm, thighCm, neckCm, notes }) => ({ day, chestCm, waistCm, hipsCm, armCm, thighCm, neckCm, notes })),
     progressPhotos: photos,
+    application: p.lead
+      ? (({ name, email, phone, goal, experience, daysPerWeek, trainsAt, about, injuries, health, healthDetails, heardFrom, consentAt, createdAt }) => ({
+          appliedAt: createdAt,
+          name,
+          email,
+          phone,
+          goal,
+          experience,
+          daysPerWeek,
+          trainsAt,
+          about,
+          injuries,
+          healthAnswers: health,
+          healthDetails,
+          heardFrom,
+          consentAt,
+        }))(p.lead)
+      : null,
     foodDiary: p.foodEntries.map(({ day, meal, name, brand, amount, unit, kcal, proteinG, carbsG, fatG }) => ({ day, meal, name, brand, amount, unit, kcal, proteinG, carbsG, fatG })),
     myFoods: p.foods.map(({ name, brand, barcode, unit, kcal, proteinG, carbsG, fatG, servingG, servingLabel }) => ({ name, brand, barcode, per100: unit, kcal, proteinG, carbsG, fatG, servingG, servingLabel })),
     tasks: p.tasks.map((t) => ({ title: t.title, notes: t.notes, frequency: t.frequency, dueDay: t.dueDay, active: t.active, completedOn: t.completions.map((c) => c.day) })),

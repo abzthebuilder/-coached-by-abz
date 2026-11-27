@@ -17,7 +17,7 @@ export const privacySections: PrivacySection[] = [
   {
     heading: "What I collect",
     bullets: [
-      "When you apply: whatever you enter in the application form, such as your name, contact details, goals and training history. The form is provided by Tally.",
+      "When you apply: what you enter in the application form, such as your name, contact details, goals, training history and your answers to the health questions.",
       "When you become a client: your name, email address and timezone, plus a password. Your password is stored scrambled (hashed), so I can never see it.",
       "What you log in the app: body weight, body measurements, your food diary, calories and macros, steps, workouts (exercises, weights and reps), check-in answers (sleep, energy, how training and nutrition went, wins, struggles and questions) and progress photos.",
       "What I add as your coach: your training plan, nutrition targets, tasks, replies to your check-ins and private notes to help me coach you.",
@@ -27,8 +27,8 @@ export const privacySections: PrivacySection[] = [
   {
     heading: "Your health information",
     paragraphs: [
-      "Body weight, measurements, progress photos and parts of your check-ins count as health information, which UK data protection law treats as extra sensitive.",
-      "I only use it with your explicit consent, which you give when you create your account. You can withdraw that consent at any time by emailing me. I'll then stop using it and delete it, although I won't be able to keep coaching you without it.",
+      "Your answers to the health questions when you apply, body weight, measurements, progress photos and parts of your check-ins count as health information, which UK data protection law treats as extra sensitive.",
+      "I only use it with your explicit consent, which you give when you apply and when you create your account. You can withdraw that consent at any time by emailing me. I'll then stop using it and delete it, although I won't be able to keep coaching you without it.",
     ],
   },
   {
@@ -48,7 +48,7 @@ export const privacySections: PrivacySection[] = [
     ],
     bullets: [
       "Railway hosts the app and its database. Your information, including your progress photos, is stored on Railway's servers in Amsterdam, the Netherlands. Railway is a US company, so in limited cases (such as technical support) information may be accessed from outside the UK. Where that happens it's protected by Railway's data processing terms.",
-      "Tally provides the application form.",
+      "If I use Tally (an online forms service) for applications instead of the form on this site, Tally stores what you enter.",
       "Open Food Facts, a free public food database, is used when you search for a food or scan a barcode. Only the words you search for or the barcode number are sent, never your name or anything else about you. Barcode scanning happens on your phone: the camera picture is never uploaded.",
       "Resend sends the app's emails, such as invites, password resets, check-in reminders and reply notifications. These emails never contain your health information, only a link to log in. Resend is a US company, and your email address is protected by its data processing terms.",
     ],

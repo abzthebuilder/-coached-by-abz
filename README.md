@@ -43,6 +43,20 @@ Progress photos are never in `/public`. They're served only through `/api/photos
 - `STORAGE_DRIVER=local`: files go in `STORAGE_DIR`. Use a persistent disk or volume.
 - `STORAGE_DRIVER=s3`: uses any S3-compatible bucket (AWS S3, Cloudflare R2, Backblaze). Keep the bucket **private**.
 
+## Applications (Leads)
+
+The Apply buttons open the site's own form at `/apply` (switchable to a Tally link in Coach → Settings).
+It asks about goals, experience and training, the 9 standard health-screening questions, and records
+two consents (18+ and terms; use of answers including health). Spam is stopped by a hidden honeypot
+field and a per-connection limit.
+
+Applications appear under **Leads** (with a badge for new ones). The coach can contact (email / WhatsApp /
+call), mark New / Contacted / Declined, keep notes, and **Accept**, which creates the invite (emailed if
+email is on). When the applicant signs up, the application is attached to their profile (Profile tab),
+their goal is pre-filled, and it's included in their data download and deleted with them. Applications that
+never become clients are deleted automatically after 12 months (hourly job; `scripts/run-reminders.ts`).
+Wording and questions: `src/content/apply.ts`.
+
 ## Food diary
 
 Clients log food by meal on **Nutrition**: search, scan a barcode with the phone camera, create a food

@@ -39,7 +39,7 @@ export function SiteHeader() {
 export function CtaButtons({ links, className, stacked }: { links: SiteLinks; className?: string; stacked?: boolean }) {
   return (
     <div className={cx("flex flex-col gap-3", !stacked && "sm:flex-row sm:flex-wrap", className)}>
-      <ButtonLink href={links.tallyUrl} external variant="gold">
+      <ButtonLink href={links.applyUrl} external={links.applyExternal} variant="gold">
         Apply for Online Coaching
       </ButtonLink>
       <ButtonLink href="/login" variant="ghost">

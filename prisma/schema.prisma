@@ -34,6 +34,13 @@ enum TaskFrequency {
   WEEKLY
 }
 
+enum LeadStatus {
+  NEW
+  CONTACTED
+  ACCEPTED
+  DECLINED
+}
+
 enum FoodSource {
   BUILTIN // the app's own list of common foods
   OFF // Open Food Facts product (cached by barcode)
@@ -69,6 +76,7 @@ model User {
   templates      WorkoutTemplate[]
   tokens         AuthToken[]      @relation("TokenCreator")
   replies        CheckInReply[]
+  leads          Lead[]           @relation("CoachLeads")
 }
 
 model Session {
@@ -130,6 +138,7 @@ model ClientProfile {
   tasks        Task[]
   foods        Food[]
   foodEntries  FoodEntry[]
+  lead         Lead?
 
   @@index([coachId])
 }
@@ -384,4 +393,36 @@ model FoodEntry {
   createdAt DateTime      @default(now())
 
   @@index([clientId, day])
+}
+
+/// An application for online coaching, made on the public site.
+/// Linked to the client profile once the applicant signs up (and deleted with it).
+/// Applications that never become clients are deleted automatically after 12 months.
+model Lead {
+  id            String         @id @default(cuid())
+  coachId       String
+  coach         User           @relation("CoachLeads", fields: [coachId], references: [id], onDelete: Cascade)
+  clientId      String?        @unique
+  client        ClientProfile? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  status        LeadStatus     @default(NEW)
+  name          String
+  email         String
+  phone         String         @default("")
+  goal          String
+  experience    String
+  daysPerWeek   Int?
+  trainsAt      String
+  about         String
+  injuries      String         @default("")
+  health        Json // { questionKey: true | false }
+  healthDetails String         @default("")
+  heardFrom     String         @default("")
+  consentAt     DateTime // agreed to terms, privacy and use of health answers
+  coachNotes    String         @default("")
+  invitedAt     DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([coachId, status])
+  @@index([email])
 }

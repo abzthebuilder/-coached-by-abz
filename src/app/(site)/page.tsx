@@ -86,9 +86,8 @@ export default async function Home() {
               ))}
             </ul>
             <a
-              href={links.tallyUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={links.applyUrl}
+              {...(links.applyExternal ? { target: "_blank", rel: "noopener noreferrer" } : {})}
               className="mt-6 inline-flex min-h-12 items-center justify-center rounded-xl bg-gold px-5 font-semibold text-ink hover:bg-gold-bright"
             >
               Apply for Online Coaching

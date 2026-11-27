@@ -18,6 +18,21 @@ const baseUrl = siteUrl;
 
 // ---------- Invites & accounts ----------
 
+/** Creates a single-use invite (14 days), emails it if email is on, and returns the link. Older invites for the email stop working. */
+async function issueInvite(coachId: string, name: string, email: string) {
+  const token = randomToken();
+  await db.authToken.updateMany({
+    where: { email, kind: "INVITE", usedAt: null },
+    data: { expiresAt: new Date() },
+  });
+  await db.authToken.create({
+    data: { tokenHash: sha256(token), kind: "INVITE", email, name, coachId, expiresAt: new Date(Date.now() + 14 * 86400000) },
+  });
+  const link = `${await baseUrl()}/invite/${token}`;
+  const emailed = emailEnabled() && (await sendEmail(emails.invite(email, name, link)));
+  return { link, emailed };
+}
+
 export async function createInviteAction(_: FormState, fd: FormData): Promise<FormState> {
   const coach = await requireCoach();
   const name = text(fd, "name", 120);
@@ -25,17 +40,8 @@ export async function createInviteAction(_: FormState, fd: FormData): Promise<Fo
   if (!name) return { error: "Enter the client's name." };
   if (!z.string().email().safeParse(email).success) return { error: "Enter a valid email address." };
   if (await db.user.findUnique({ where: { email } })) return { error: "Someone already has an account with that email." };
-  const token = randomToken();
-  await db.authToken.updateMany({
-    where: { email, kind: "INVITE", usedAt: null },
-    data: { expiresAt: new Date() }, // older links for the same email stop working
-  });
-  await db.authToken.create({
-    data: { tokenHash: sha256(token), kind: "INVITE", email, name, coachId: coach.id, expiresAt: new Date(Date.now() + 14 * 86400000) },
-  });
+  const { link, emailed } = await issueInvite(coach.id, name, email);
   revalidatePath("/coach");
-  const link = `${await baseUrl()}/invite/${token}`;
-  const emailed = emailEnabled() && (await sendEmail(emails.invite(email, name, link)));
   return {
     ok: true,
     message: emailed
@@ -78,13 +84,17 @@ export async function createResetLinkAction(_: FormState, fd: FormData): Promise
 
 export async function saveSiteLinksAction(_: FormState, fd: FormData): Promise<FormState> {
   await requireCoach();
+  const applyMode = fd.get("applyMode") === "tally" ? "tally" : "builtin";
   const tallyUrl = text(fd, "tallyUrl", 500);
-  if (!isSafeHttpUrl(tallyUrl)) return { error: "The link must start with https://" };
-  await db.$transaction([
-    db.siteSetting.upsert({ where: { key: "tallyUrl" }, create: { key: "tallyUrl", value: tallyUrl }, update: { value: tallyUrl } }),
-  ]);
+  if (applyMode === "tally" && !isSafeHttpUrl(tallyUrl)) return { error: "Paste your Tally link (starting https://) to use Tally." };
+  if (tallyUrl && !isSafeHttpUrl(tallyUrl)) return { error: "The Tally link must start with https://" };
+  const set = (key: string, value: string) => db.siteSetting.upsert({ where: { key }, create: { key, value }, update: { value } });
+  await db.$transaction([set("applyMode", applyMode), set("tallyUrl", tallyUrl)]);
   revalidatePath("/", "layout");
-  return { ok: true, message: "Link updated on the public site." };
+  return {
+    ok: true,
+    message: applyMode === "builtin" ? "Apply buttons now open your own application form." : "Apply buttons now open your Tally form.",
+  };
 }
 
 // ---------- Templates ----------
@@ -365,4 +375,63 @@ export async function deleteClientAction(_: FormState, fd: FormData): Promise<Fo
   for (const ph of photos) await deleteObject(ph.storageKey);
   revalidatePath("/coach", "layout");
   redirect(`/coach?deleted=${encodeURIComponent(profile.user.name)}`);
+}
+
+// ---------- Leads (applications) ----------
+
+async function ownedLead(id: string, coachId: string) {
+  const lead = await db.lead.findFirst({ where: { id, coachId } });
+  if (!lead) throw new InputError("Application not found.");
+  return lead;
+}
+
+export async function setLeadStatusAction(fd: FormData) {
+  const coach = await requireCoach();
+  const status = text(fd, "status", 20);
+  if (!["NEW", "CONTACTED", "DECLINED"].includes(status)) return;
+  const lead = await db.lead.findFirst({ where: { id: text(fd, "id", 64), coachId: coach.id } });
+  if (!lead || lead.status === "ACCEPTED") return;
+  await db.lead.update({ where: { id: lead.id }, data: { status: status as "NEW" | "CONTACTED" | "DECLINED" } });
+  revalidatePath("/coach", "layout");
+}
+
+export async function saveLeadNotesAction(_: FormState, fd: FormData): Promise<FormState> {
+  const coach = await requireCoach();
+  try {
+    const lead = await ownedLead(text(fd, "id", 64), coach.id);
+    await db.lead.update({ where: { id: lead.id }, data: { coachNotes: text(fd, "coachNotes", 4000) } });
+  } catch (e) {
+    return fail(e);
+  }
+  revalidatePath("/coach/leads", "layout");
+  return { ok: true, message: "Notes saved." };
+}
+
+/** Accepts an applicant: creates their invite (emailed if email is on) and marks them Accepted. */
+export async function acceptLeadAction(_: FormState, fd: FormData): Promise<FormState> {
+  const coach = await requireCoach();
+  try {
+    const lead = await ownedLead(text(fd, "id", 64), coach.id);
+    if (lead.clientId) throw new InputError("They've already set up their account.");
+    if (await db.user.findUnique({ where: { email: lead.email } })) throw new InputError("Someone already has an account with that email.");
+    const { link, emailed } = await issueInvite(coach.id, lead.name, lead.email);
+    await db.lead.update({ where: { id: lead.id }, data: { status: "ACCEPTED", invitedAt: new Date() } });
+    revalidatePath("/coach", "layout");
+    return {
+      ok: true,
+      message: emailed
+        ? `Accepted. Invite emailed to ${lead.email}. You can also copy the link below.`
+        : "Accepted. Copy the invite link below and send it to them. It works once and expires in 14 days.",
+      link,
+    };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function deleteLeadAction(fd: FormData) {
+  const coach = await requireCoach();
+  await db.lead.deleteMany({ where: { id: text(fd, "id", 64), coachId: coach.id, clientId: null } });
+  revalidatePath("/coach", "layout");
+  redirect("/coach/leads?deleted=1");
 }

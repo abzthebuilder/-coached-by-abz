@@ -21,6 +21,7 @@ import { emailEnabled, sendEmail } from "@/lib/email";
 import { emails } from "@/lib/email-templates";
 import { siteUrl } from "@/lib/request-url";
 import { z } from "zod";
+import { GOALS } from "@/content/apply";
 
 // Compared against when the email is unknown, so response time doesn't reveal which emails exist.
 let dummyHash: Promise<string> | null = null;
@@ -78,16 +79,28 @@ export async function acceptInviteAction(_: FormState, fd: FormData): Promise<Fo
   const user = await db.$transaction(async (tx) => {
     const claimed = await tx.authToken.updateMany({ where: { id: invite.id, usedAt: null }, data: { usedAt: new Date() } });
     if (claimed.count !== 1) throw new Error("Invite already used");
-    return tx.user.create({
+    // If they applied on the site, start from the goal they chose and keep their application with their profile.
+    const lead = await tx.lead.findFirst({
+      where: { email: invite.email, coachId: invite.coachId, clientId: null },
+      orderBy: { createdAt: "desc" },
+    });
+    const goal = GOALS.find((g) => g.key === lead?.goal)?.profileGoal;
+    const created = await tx.user.create({
       data: {
         email: invite.email,
         name,
         passwordHash,
         role: "CLIENT",
         timezone: tz,
-        clientProfile: { create: { coachId: invite.coachId, startDay: todayIn(tz), healthConsentAt: new Date(), termsAcceptedAt: new Date() } },
+        clientProfile: {
+          create: { coachId: invite.coachId, startDay: todayIn(tz), healthConsentAt: new Date(), termsAcceptedAt: new Date(), ...(goal ? { goal } : {}) },
+        },
       },
+      include: { clientProfile: true },
     });
+    if (lead && created.clientProfile)
+      await tx.lead.update({ where: { id: lead.id }, data: { clientId: created.clientProfile.id, status: "ACCEPTED" } });
+    return created;
   });
   await createSession(user.id);
   redirect("/app?welcome=1");

@@ -15,7 +15,7 @@ export default async function Coaching() {
         own schedule, wherever you train.
       </p>
 
-      {[{ s: services.online, photo: photos.gym, cta: { href: links.tallyUrl, label: "Apply for Online Coaching" } }].map(({ s, photo, cta }, i) => (
+      {[{ s: services.online, photo: photos.gym, cta: { href: links.applyUrl, label: "Apply for Online Coaching" } }].map(({ s, photo, cta }, i) => (
         <section key={s.title} className={hasPhoto(photo) ? "mt-12 grid gap-6 md:grid-cols-2 md:items-center" : "mt-12 max-w-2xl"}>
           <GymPhoto photo={photo} optional className={i % 2 ? "aspect-[4/3] md:order-2" : "aspect-[4/3]"} />
           <div>
@@ -31,8 +31,7 @@ export default async function Coaching() {
             </ul>
             <a
               href={cta.href}
-              target="_blank"
-              rel="noopener noreferrer"
+              {...(links.applyExternal ? { target: "_blank", rel: "noopener noreferrer" } : {})}
               className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-gold px-5 font-semibold text-ink hover:bg-gold-bright sm:w-auto"
             >
               {cta.label}

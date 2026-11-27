@@ -1,5 +1,8 @@
 # Health questions for the Tally application form
 
+> **Only needed if you use Tally.** The site's own application form (Coach → Settings → Application form,
+> the default) already asks these questions, records consent and puts every application in **Leads**.
+
 Add these to your Online Coaching application form so you know about anything that needs a GP's OK
 before you write someone's plan. They're based on the standard pre-exercise screening most gyms use.
 
