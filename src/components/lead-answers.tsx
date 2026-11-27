@@ -37,29 +37,31 @@ export function LeadAnswers({ lead }: { lead: Lead }) {
       </div>
       {block("Their goals", lead.about)}
       {block("Injuries / anything else", lead.injuries)}
+      {Object.keys(health).length > 0 && (
       <div>
-        <div className={cx("rounded-xl p-3", yeses.length ? "border border-warn/50 bg-warn/10" : "bg-char-2")}>
-          <div className="eyebrow mb-1">Health check</div>
-          {yeses.length ? (
-            <p className="text-sm text-warn">
-              Answered yes to {yeses.length} question{yeses.length > 1 ? "s" : ""}. Ask them to check with their GP before you write their
-              plan, and keep a note that you asked.
-            </p>
-          ) : (
-            <p className="text-sm text-mute">Answered no to every question.</p>
-          )}
+          <div className={cx("rounded-xl p-3", yeses.length ? "border border-warn/50 bg-warn/10" : "bg-char-2")}>
+            <div className="eyebrow mb-1">Health check</div>
+            {yeses.length ? (
+              <p className="text-sm text-warn">
+                Answered yes to {yeses.length} question{yeses.length > 1 ? "s" : ""}. Ask them to check with their GP before you write their
+                plan, and keep a note that you asked.
+              </p>
+            ) : (
+              <p className="text-sm text-mute">Answered no to every question.</p>
+            )}
+          </div>
+          <ol className="mt-2 space-y-1.5 text-sm">
+            {HEALTH_QUESTIONS.map((q, i) => (
+              <li key={q.key} className="flex justify-between gap-3">
+                <span className="text-mute">
+                  {i + 1}. {q.q}
+                </span>
+                <span className={cx("shrink-0 font-semibold", health[q.key] ? "text-warn" : "text-faint")}>{health[q.key] ? "Yes" : "No"}</span>
+              </li>
+            ))}
+          </ol>
         </div>
-        <ol className="mt-2 space-y-1.5 text-sm">
-          {HEALTH_QUESTIONS.map((q, i) => (
-            <li key={q.key} className="flex justify-between gap-3">
-              <span className="text-mute">
-                {i + 1}. {q.q}
-              </span>
-              <span className={cx("shrink-0 font-semibold", health[q.key] ? "text-warn" : "text-faint")}>{health[q.key] ? "Yes" : "No"}</span>
-            </li>
-          ))}
-        </ol>
-      </div>
+      )}
       {block("Health details", lead.healthDetails)}
       <p className="text-xs text-faint">
         Agreed to the terms and to their answers being used, {fmtDay(lead.consentAt.toISOString().slice(0, 10), { year: true })}.

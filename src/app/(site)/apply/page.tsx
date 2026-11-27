@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ApplyForm } from "@/components/apply-form";
 import { ChoiceChips } from "@/components/choice-chips";
 import { Card, Field } from "@/components/ui";
-import { EXPERIENCE, GOALS, HEALTH_QUESTIONS, HEARD_FROM, TRAINS_AT } from "@/content/apply";
+import { EXPERIENCE, GOALS, HEARD_FROM, TRAINS_AT } from "@/content/apply";
 
 export const metadata = {
   title: "Apply for online coaching",
@@ -33,7 +33,7 @@ export default async function Apply({ searchParams }: { searchParams: Promise<{ 
       <div className="eyebrow mb-2">Online coaching</div>
       <h1 className="font-display text-5xl uppercase leading-none">Apply</h1>
       <p className="mt-4 text-lg text-mute">
-        Tell me about you and your goals. It takes about 5 minutes, and I read every application personally.
+        Tell me about you and your goals. It takes a few minutes, and I read every application personally.
       </p>
 
       <div className="mt-8">
@@ -82,30 +82,6 @@ export default async function Apply({ searchParams }: { searchParams: Promise<{ 
             </Field>
           </Card>
 
-          <Card className="space-y-5">
-            <div>
-              <h2 className="font-display text-2xl uppercase">Health check</h2>
-              <p className="mt-1 text-sm text-mute">
-                These standard questions help keep training safe. A &ldquo;yes&rdquo; doesn&apos;t stop you applying: I may just ask you to
-                check with your GP before we start.
-              </p>
-            </div>
-            {HEALTH_QUESTIONS.map((h, i) => (
-              <ChoiceChips
-                key={h.key}
-                name={`health_${h.key}`}
-                legend={`${i + 1}. ${h.q}`}
-                options={[
-                  { value: "no", label: "No" },
-                  { value: "yes", label: "Yes" },
-                ]}
-              />
-            ))}
-            <Field label="If you answered yes to any of these, tell me a bit more">
-              <textarea className="field min-h-20" name="healthDetails" maxLength={3000} />
-            </Field>
-          </Card>
-
           <Card className="space-y-4">
             <Field label="How did you hear about me? (optional)">
               <select className="field" name="heardFrom" defaultValue="">
@@ -130,7 +106,8 @@ export default async function Apply({ searchParams }: { searchParams: Promise<{ 
             <label className="flex gap-3 rounded-xl border border-line bg-char-2 p-4 text-sm text-mute">
               <input type="checkbox" name="consent" required className="mt-0.5 h-5 w-5 shrink-0 accent-[#d4af37]" />
               <span>
-                I agree to Coached by ABZ using my answers, including my health answers, to review my application, as explained in the{" "}
+                I agree to Coached by ABZ using my answers, including anything I&apos;ve shared about injuries, to review my application, as
+                explained in the{" "}
                 <a href="/privacy" target="_blank" rel="noopener" className="text-gold underline underline-offset-4">
                   privacy policy
                 </a>

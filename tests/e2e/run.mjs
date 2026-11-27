@@ -38,8 +38,7 @@ try {
 } catch {
   throw new Error(`Start the food database stub first (node tests/e2e/off-stub.mjs 4010) and run the app with OFF_BASE_URL=${OFF_STUB}`);
 }
-const HEALTH_KEYS = ["heart", "chestPain", "dizziness", "conditions", "injury", "medication", "pregnancy", "eatingDisorder", "other"];
-async function fillApplication(page, who, { injury = false } = {}) {
+async function fillApplication(page, who) {
   await page.getByLabel("Your name").fill(who.name);
   await page.getByLabel("Email").fill(who.email);
   if (who.phone) await page.getByLabel("Phone or WhatsApp (optional)").fill(who.phone);
@@ -49,7 +48,7 @@ async function fillApplication(page, who, { injury = false } = {}) {
   await pick("experience", "returning");
   await pick("daysPerWeek", "4");
   await pick("trainsAt", "gym");
-  for (const k of HEALTH_KEYS) await pick(`health_${k}`, k === "injury" && injury ? "yes" : "no");
+  if (who.injuries) await page.getByLabel("Any injuries, or anything else I should know? (optional)").fill(who.injuries);
   await page.locator('input[name="terms"]').check();
   await page.locator('input[name="consent"]').check();
 }
@@ -389,21 +388,22 @@ try {
   });
 
   await step("Visitor applies on the site; coach reviews, accepts and invites; they sign up with their application attached", async () => {
-    const C = { name: `Charlie Lead ${run}`, email: `charlie.${run}@test.coachedbyabz.com`, password: "charlie-password-123", phone: "07700 900123", about: `Want to add size before summer ${run}` };
+    const C = { name: `Charlie Lead ${run}`, email: `charlie.${run}@test.coachedbyabz.com`, password: "charlie-password-123", phone: "07700 9001x", about: `Want to add size before summer ${run}`, injuries: "Old knee injury, fine now" };
     clients.C = C;
     const v = await (await phone()).newPage();
     await v.goto("/");
     await v.getByRole("link", { name: "Apply for Online Coaching" }).first().click();
     await v.waitForURL(/\/apply$/);
-    await fillApplication(v, C, { injury: true });
+    assert.equal(await v.getByText("Health check").count(), 0, "no health questions on the form");
+    await fillApplication(v, C);
     await v.getByRole("button", { name: "Send application" }).click();
-    await v.getByText("You answered yes to a health question").waitFor();
+    await v.getByText("Check your phone number.").waitFor();
     assert.equal(await v.getByLabel("Your name").inputValue(), C.name, "answers kept after an error");
-    await v.getByLabel("If you answered yes to any of these, tell me a bit more").fill("Old knee injury, fine now");
+    await v.getByLabel("Phone or WhatsApp (optional)").fill("07700 900123");
     await v.getByRole("button", { name: "Send application" }).click();
     await v.getByRole("heading", { name: "Thanks for applying" }).waitFor();
     const lead = await db.lead.findFirst({ where: { email: C.email } });
-    assert.ok(lead && lead.status === "NEW" && lead.health.injury === true && lead.health.heart === false && lead.consentAt, "application stored");
+    assert.ok(lead && lead.status === "NEW" && lead.injuries === C.injuries && Object.keys(lead.health).length === 0 && lead.consentAt, "application stored");
     leadId = lead.id;
     const note = mailsTo(COACH_EMAIL).at(-1);
     assert.equal(note.subject, `New application from ${C.name}`);
@@ -423,8 +423,8 @@ try {
     await coach.getByRole("link", { name: /new application/ }).click();
     await coach.waitForURL(/\/coach\/leads/);
     await coach.getByRole("link", { name: new RegExp(C.name) }).click();
-    await coach.getByText("Answered yes to 1 question").waitFor();
     await coach.getByText("Old knee injury, fine now").waitFor();
+    assert.equal(await coach.getByText("Health check").count(), 0, "no health section for new applications");
     assert.equal(await coach.getByRole("link", { name: "WhatsApp" }).getAttribute("href"), "https://wa.me/447700900123");
     await coach.getByRole("button", { name: "Contacted", exact: true }).click();
     await coach.getByRole("button", { name: "Contacted", exact: true, pressed: true }).waitFor();
@@ -459,7 +459,7 @@ try {
     await coach.getByText("Their application").click();
     await coach.getByText(C.about).waitFor();
     const exp = await unzip(await coach.request.get(`/api/export/client/${prof.id}`));
-    assert.equal(exp.json.application.healthAnswers.injury, true);
+    assert.equal(exp.json.application.injuries, C.injuries);
 
     // Deleting a spam application that got through
     const spam = await db.lead.create({

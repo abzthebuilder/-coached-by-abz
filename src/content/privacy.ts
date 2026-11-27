@@ -17,7 +17,7 @@ export const privacySections: PrivacySection[] = [
   {
     heading: "What I collect",
     bullets: [
-      "When you apply: what you enter in the application form, such as your name, contact details, goals, training history and your answers to the health questions.",
+      "When you apply: what you enter in the application form, such as your name, contact details, goals, training history and anything you tell me about injuries.",
       "When you become a client: your name, email address and timezone, plus a password. Your password is stored scrambled (hashed), so I can never see it.",
       "What you log in the app: body weight, body measurements, your food diary, calories and macros, steps, workouts (exercises, weights and reps), check-in answers (sleep, energy, how training and nutrition went, wins, struggles and questions) and progress photos.",
       "What I add as your coach: your training plan, nutrition targets, tasks, replies to your check-ins and private notes to help me coach you.",
@@ -27,7 +27,7 @@ export const privacySections: PrivacySection[] = [
   {
     heading: "Your health information",
     paragraphs: [
-      "Your answers to the health questions when you apply, body weight, measurements, progress photos and parts of your check-ins count as health information, which UK data protection law treats as extra sensitive.",
+      "Anything you tell me about injuries or your health when you apply, body weight, measurements, progress photos and parts of your check-ins count as health information, which UK data protection law treats as extra sensitive.",
       "I only use it with your explicit consent, which you give when you apply and when you create your account. You can withdraw that consent at any time by emailing me. I'll then stop using it and delete it, although I won't be able to keep coaching you without it.",
     ],
   },

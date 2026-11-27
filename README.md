@@ -46,8 +46,8 @@ Progress photos are never in `/public`. They're served only through `/api/photos
 ## Applications (Leads)
 
 The Apply buttons open the site's own form at `/apply` (switchable to a Tally link in Coach → Settings).
-It asks about goals, experience and training, the 9 standard health-screening questions, and records
-two consents (18+ and terms; use of answers including health). Spam is stopped by a hidden honeypot
+It asks about goals, experience, training and injuries, and records two consents (18+ and terms; use of
+their answers). There are no health-screening questions: clients accept the health disclaimer at sign-up. Spam is stopped by a hidden honeypot
 field and a per-connection limit.
 
 Applications appear under **Leads** (with a badge for new ones). The coach can contact (email / WhatsApp /

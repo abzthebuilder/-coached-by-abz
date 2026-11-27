@@ -7,7 +7,7 @@ import { fail, InputError, text } from "@/lib/parse";
 import { emailEnabled, sendEmail } from "@/lib/email";
 import { emails } from "@/lib/email-templates";
 import { siteUrl } from "@/lib/request-url";
-import { EXPERIENCE, GOALS, HEALTH_QUESTIONS, HEARD_FROM, TRAINS_AT } from "@/content/apply";
+import { EXPERIENCE, GOALS, HEARD_FROM, TRAINS_AT } from "@/content/apply";
 import type { FormState } from "@/components/form";
 
 const oneOf = (fd: FormData, name: string, list: readonly { key: string }[], message: string) => {
@@ -38,17 +38,8 @@ export async function submitApplicationAction(_: FormState, fd: FormData): Promi
     if (daysPerWeek === null) throw new InputError("Choose how many days a week you can train.");
     const about = text(fd, "about", 3000);
     if (about.length < 10) throw new InputError("Tell me a little about your goals.");
-    const health: Record<string, boolean> = {};
-    for (const h of HEALTH_QUESTIONS) {
-      const v = fd.get(`health_${h.key}`);
-      if (v !== "yes" && v !== "no") throw new InputError("Answer every health question (yes or no).");
-      health[h.key] = v === "yes";
-    }
-    const healthDetails = text(fd, "healthDetails", 3000);
-    if (Object.values(health).some(Boolean) && healthDetails.length < 3)
-      throw new InputError("You answered yes to a health question. Please tell me a bit more about it.");
     if (fd.get("terms") !== "on") throw new InputError("Please confirm you're 18 or over and agree to the terms.");
-    if (fd.get("consent") !== "on") throw new InputError("Please agree to me using your answers, including the health questions, to review your application.");
+    if (fd.get("consent") !== "on") throw new InputError("Please agree to me using your answers to review your application.");
     const heardRaw = text(fd, "heardFrom", 40);
     const heardFrom = (HEARD_FROM as readonly string[]).includes(heardRaw) ? heardRaw : "";
 
@@ -67,8 +58,7 @@ export async function submitApplicationAction(_: FormState, fd: FormData): Promi
         trainsAt,
         about,
         injuries: text(fd, "injuries", 3000),
-        health,
-        healthDetails,
+        health: {}, // the form no longer asks health-screening questions
         heardFrom,
         consentAt: new Date(),
       },
