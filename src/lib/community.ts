@@ -5,6 +5,7 @@ import { REACTIONS } from "@/content/community";
 import crypto from "node:crypto";
 import sharp from "sharp";
 import { deleteObject, putObject, sniffImage } from "./storage";
+import { sendPush } from "./push";
 
 export type ChatMessage = {
   id: string;
@@ -164,4 +165,24 @@ export async function storeCommunityPhoto(coachId: string, file: File) {
 /** Deletes the stored photo files of the given messages (call before or after deleting the rows). */
 export async function deleteCommunityPhotos(keys: (string | null)[]) {
   for (const k of keys) if (k) await deleteObject(k);
+}
+
+/** Notifies community members about a new message, following each person's choice (all / ABZ only / off). */
+export async function notifyCommunityMessage(coachId: string, authorId: string, body: string, hasPhoto: boolean) {
+  const [author, members] = await Promise.all([
+    db.communityMember.findUnique({ where: { userId: authorId }, include: { user: { select: { role: true } } } }),
+    db.communityMember.findMany({ where: { coachId, removedAt: null, userId: { not: authorId }, notify: { not: "off" } } }),
+  ]);
+  if (!author) return;
+  const fromCoach = author.user.role === "COACH";
+  const recipients = members
+    .filter((m) => m.notify === "all" || (m.notify === "coach" && fromCoach))
+    .map((m) => ({ userId: m.userId, url: m.userId === coachId ? "/coach/community" : "/app/community" }));
+  const text = body.replace(/\s+/g, " ").trim();
+  const preview = text ? (text.length > 120 ? `${text.slice(0, 117)}…` : text) : "";
+  await sendPush(recipients, {
+    title: `${author.displayName}${fromCoach ? " (Coach)" : ""}`,
+    body: hasPhoto ? `📷 ${preview || "Photo"}` : preview,
+    tag: "community",
+  });
 }

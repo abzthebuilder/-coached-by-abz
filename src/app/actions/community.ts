@@ -3,7 +3,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireCoach, requireClient, requireUser } from "@/lib/auth";
-import { communityFor, deleteCommunityPhotos, PhotoError, postingTooFast, storeCommunityPhoto } from "@/lib/community";
+import { after } from "next/server";
+import { communityFor, deleteCommunityPhotos, notifyCommunityMessage, PhotoError, postingTooFast, storeCommunityPhoto } from "@/lib/community";
 import { storageProblem } from "@/lib/storage";
 import { text } from "@/lib/parse";
 import { REACTIONS } from "@/content/community";
@@ -93,6 +94,8 @@ export async function postMessageAction(fd: FormData): Promise<Result> {
   await db.communityMessage.create({
     data: { coachId: m.ctx.coachId, authorId: m.user.id, body: clean, imageKey: image?.key, imageW: image?.w, imageH: image?.h },
   });
+  const coachId = m.ctx.coachId, authorId = m.user.id, hasPhoto = !!image;
+  after(() => notifyCommunityMessage(coachId, authorId, clean, hasPhoto));
   return { ok: true };
 }
 

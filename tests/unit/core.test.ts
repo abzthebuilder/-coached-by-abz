@@ -90,3 +90,26 @@ describe("check-in reminders", () => {
     expect(shouldRemind(due(3), 12, null)).toBe(false);
   });
 });
+
+import crypto from "node:crypto";
+import webpush from "web-push";
+
+describe("phone notifications", () => {
+  it("builds a real encrypted Web Push request with our keys", () => {
+    const ecdh = crypto.createECDH("prime256v1");
+    ecdh.generateKeys();
+    const sub = {
+      endpoint: "https://fcm.googleapis.com/fcm/send/abc123",
+      keys: { p256dh: ecdh.getPublicKey().toString("base64url"), auth: crypto.randomBytes(16).toString("base64url") },
+    };
+    const vapid = webpush.generateVAPIDKeys();
+    const req = webpush.generateRequestDetails(sub, JSON.stringify({ title: "Test", body: "Hi", url: "/app" }), {
+      vapidDetails: { subject: "https://coachedbyabz.com", publicKey: vapid.publicKey, privateKey: vapid.privateKey },
+      TTL: 60,
+    });
+    expect(req.method).toBe("POST");
+    expect(String(req.headers.Authorization)).toMatch(/^vapid t=.+, k=/);
+    expect(req.headers["Content-Encoding"]).toBe("aes128gcm");
+    expect((req.body as Buffer).length).toBeGreaterThan(40);
+  });
+});

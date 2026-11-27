@@ -63,6 +63,13 @@ export const privacySections: PrivacySection[] = [
     ],
   },
   {
+    heading: "Notifications",
+    paragraphs: [
+      "If you turn on notifications, your phone gives the app a private notification address, which is stored with your account. Notifications are delivered by your phone's own notification service (Apple, Google or Mozilla).",
+      "Check-in notifications never include what was written, only that there's something to read. Community notifications show who posted and the start of their message. You can turn notifications off at any time in the app or in your phone's settings.",
+    ],
+  },
+  {
     heading: "Progress photos",
     paragraphs: [
       "Your progress photos are private. They're stored securely and only shown to you and me when we're logged in.",

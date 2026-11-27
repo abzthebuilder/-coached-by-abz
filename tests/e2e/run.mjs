@@ -20,6 +20,10 @@ const { execFileSync } = require("node:child_process");
 const { unzipSync, strFromU8 } = require(path.resolve("node_modules/fflate"));
 
 const EMAIL_LOG = process.env.EMAIL_DEV_LOG;
+const PUSH_LOG = process.env.PUSH_DEV_LOG;
+if (!PUSH_LOG) throw new Error("Set PUSH_DEV_LOG to the same file the server writes notifications to.");
+const pushesTo = (userId) =>
+  fs.existsSync(PUSH_LOG) ? fs.readFileSync(PUSH_LOG, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)).filter((m) => m.userId === userId) : [];
 if (!EMAIL_LOG) throw new Error("Set EMAIL_DEV_LOG to the same file the server writes emails to.");
 const mailsTo = (to) =>
   fs.existsSync(EMAIL_LOG) ? fs.readFileSync(EMAIL_LOG, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)).filter((m) => m.to === to) : [];
@@ -610,6 +614,59 @@ try {
     assert.equal(await db.communityMember.count({ where: { userId: aUser.id } }), 0);
   });
 
+  await step("Phone notifications: community (respecting each person's choice), check-in replies, expired devices removed", async () => {
+    const r = await coach.request.get("/sw.js");
+    assert.equal(r.status(), 200, "service worker served");
+    assert.match(r.headers()["content-type"], /javascript/);
+    const [coachUser, aUser, bUser, cUser] = await Promise.all(
+      [COACH_EMAIL, clients.A.email, clients.B.email, clients.C.email].map((email) => db.user.findUnique({ where: { email } })),
+    );
+    const sub = (userId, name) =>
+      db.pushSubscription.create({ data: { userId, endpoint: `https://push.example.test/${name}-${run}`, p256dh: "B".repeat(87), auth: "A".repeat(22) } });
+    await Promise.all([sub(coachUser.id, "coach"), sub(aUser.id, "a"), sub(bUser.id, "b"), sub(cUser.id, "c"), sub(cUser.id, "expired/c")]);
+    const C = clients.C.page;
+    await joinCommunity(C, `Charlie-${run}`);
+
+    // B posts: coach and C are notified (with a preview); B isn't; A (left the community) isn't.
+    await sendChat(B, `Deadlift PB ${run}`);
+    await until(async () => pushesTo(cUser.id).some((p) => p.body.includes(`Deadlift PB ${run}`)));
+    await until(async () => pushesTo(coachUser.id).some((p) => p.body.includes(`Deadlift PB ${run}`)));
+    const toC = pushesTo(cUser.id).find((p) => p.body.includes(`Deadlift PB ${run}`));
+    assert.equal(toC.title, `Bravo-${run}`);
+    assert.equal(toC.url, "/app/community");
+    assert.equal(pushesTo(coachUser.id).find((p) => p.body.includes(`Deadlift PB ${run}`)).url, "/coach/community");
+    assert.ok(!pushesTo(bUser.id).some((p) => p.body.includes(`Deadlift PB ${run}`)), "author not notified");
+    assert.ok(!pushesTo(aUser.id).some((p) => p.body.includes(`Deadlift PB ${run}`)), "non-member not notified");
+    await until(async () => (await db.pushSubscription.count({ where: { endpoint: { contains: `expired/c-${run}` } } })) === 0);
+
+    // C chooses "ABZ only" on their Account page: other members' messages no longer notify them.
+    await C.goto("/app/account");
+    await C.getByRole("button", { name: "ABZ only" }).click();
+    await until(async () => (await db.communityMember.findUnique({ where: { userId: cUser.id } })).notify === "coach");
+    await sendChat(B, `Squat day ${run}`);
+    await until(async () => pushesTo(coachUser.id).some((p) => p.body.includes(`Squat day ${run}`)));
+    await new Promise((res) => setTimeout(res, 800));
+    assert.ok(!pushesTo(cUser.id).some((p) => p.body.includes(`Squat day ${run}`)), "C not notified about other members");
+    await coach.goto("/coach/community");
+    await sendChat(coach, `Coach tip ${run}`);
+    await until(async () => pushesTo(cUser.id).some((p) => p.body.includes(`Coach tip ${run}`)));
+    assert.equal(pushesTo(cUser.id).find((p) => p.body.includes(`Coach tip ${run}`)).title, "ABZ (Coach)");
+
+    // Coach replies to A's check-in: A is notified, without the reply text.
+    await coach.goto(`/coach/clients/${profA.id}`);
+    await coach.getByLabel("Reply").fill(`Private reply text ${run}`);
+    await coach.getByRole("button", { name: "Send reply" }).click();
+    await coach.getByText("Reply sent").waitFor();
+    await until(async () => pushesTo(aUser.id).some((p) => p.title === "ABZ replied to your check-in"));
+    const toA = pushesTo(aUser.id).find((p) => p.title === "ABZ replied to your check-in");
+    assert.match(toA.url, /^\/app\/check-ins\//);
+    assert.ok(!JSON.stringify(pushesTo(aUser.id)).includes(`Private reply text ${run}`), "no check-in text in notifications");
+
+    // The settings card is on the Account page and in Coach settings
+    await coach.goto("/coach/settings");
+    await coach.getByRole("heading", { name: "Notifications" }).waitFor();
+  });
+
   await step("Isolation: client B cannot see or touch client A's records or photos", async () => {
     const photo = await db.progressPhoto.findFirst({ where: { clientId: profA.id } });
     const ci = await db.checkIn.findFirst({ where: { clientId: profA.id } });
@@ -813,6 +870,7 @@ try {
   for (const ph of photos) fs.rmSync(path.join(storageRoot, ph.storageKey), { force: true });
   await db.lead.deleteMany({ where: { email: emails } });
   await db.communityMessage.deleteMany({ where: { body: { contains: run } } }); // the coach's test messages
+  await db.pushSubscription.deleteMany({ where: { endpoint: { contains: run } } });
   await db.user.deleteMany({ where: { email: emails, role: "CLIENT" } });
   await db.user.deleteMany({ where: { email: emails } });
   await db.$disconnect();

@@ -68,6 +68,18 @@ Photos are shrunk on the phone, then re-encoded on the server (max 1600 px JPEG,
 removed), stored privately and served only to members via `/api/community/photos/[id]`; deleting a
 message, leaving, or deleting a client removes the files.
 
+## Phone notifications
+
+Web Push, no third-party service. Keys are generated on first use and stored in the database (or set
+`VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`). People turn notifications on per device on **Account**
+(clients) or **Settings** (coach); on iPhone the app must be added to the Home Screen first (iOS 16.4+).
+`public/sw.js` shows notifications and opens the right page when tapped (no caching).
+
+Sent for: community messages (each member chooses all / ABZ only / off; shows sender and a preview),
+coach replies to check-ins (no text), client check-ins and replies (to the coach, no text), and new
+applications. Devices that unsubscribe are removed automatically. `PUSH_DEV_LOG=<file>` writes
+notifications to a file instead of sending (tests).
+
 ## Food diary
 
 Clients log food by meal on **Nutrition**: search, scan a barcode with the phone camera, create a food
@@ -124,7 +136,7 @@ Emails never include health information, only a short note and a link to log in.
 npm test                         # unit tests: macro maths, check-in schedule, week comparison, adherence
 npm run db:seed                  # demo coach + 2 demo clients (dev only)
 # e2e expects: node tests/e2e/off-stub.mjs 4010, and the server started with
-# OFF_BASE_URL=http://localhost:4010 OFF_SEARCH_URL=http://localhost:4010 EMAIL_DEV_LOG=<file> DISABLE_REMINDERS=1
+# OFF_BASE_URL=http://localhost:4010 OFF_SEARCH_URL=http://localhost:4010 EMAIL_DEV_LOG=<file> PUSH_DEV_LOG=<file> DISABLE_REMINDERS=1
 BASE_URL=http://localhost:3000 NODE_PATH=$(npm root -g) npm run test:e2e
 ```
 

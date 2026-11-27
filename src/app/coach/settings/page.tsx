@@ -4,12 +4,15 @@ import { saveSiteLinksAction } from "@/app/actions/coach";
 import { ActionForm, SubmitButton } from "@/components/form";
 import { Card, CardTitle, Field, PageHeader } from "@/components/ui";
 import { ChangePasswordForm } from "@/components/change-password";
+import { NotificationsCard } from "@/components/notifications-card";
+import { vapidPublicKey } from "@/lib/push";
+import { communityFor } from "@/lib/community";
 
 export const metadata = { title: "Settings" };
 
 export default async function Settings({ searchParams }: { searchParams: Promise<{ setup?: string }> }) {
-  await requireCoach();
-  const links = await getSiteLinks();
+  const coach = await requireCoach();
+  const [links, publicKey, community] = await Promise.all([getSiteLinks(), vapidPublicKey(), communityFor(coach)]);
   const sp = await searchParams;
   return (
     <div className="mx-auto max-w-2xl space-y-5">
@@ -46,6 +49,11 @@ export default async function Settings({ searchParams }: { searchParams: Promise
           </Field>
           <SubmitButton className="w-full">Save</SubmitButton>
         </ActionForm>
+      </Card>
+      <Card>
+        <CardTitle eyebrow="This phone" title="Notifications" />
+        <p className="mb-3 text-sm text-mute">Get a notification for new applications, check-ins and replies, and community messages.</p>
+        <NotificationsCard publicKey={publicKey} communityNotify={(community?.member?.notify as "all" | "coach" | "off") ?? "all"} />
       </Card>
       <Card>
         <CardTitle eyebrow="Your login" title="Change password" />

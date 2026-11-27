@@ -11,6 +11,8 @@ import type { FormState } from "@/components/form";
 import { emailEnabled, sendEmail } from "@/lib/email";
 import { emails } from "@/lib/email-templates";
 import { siteUrl } from "@/lib/request-url";
+import { after } from "next/server";
+import { sendPush } from "@/lib/push";
 import { entryNutrition, recomputeDiaryTotals, resolveFood } from "@/lib/food";
 import { isBarcode, isMeal } from "@/lib/food-math";
 import { z } from "zod";
@@ -165,6 +167,13 @@ export async function submitCheckInAction(_: FormState, fd: FormData): Promise<F
     return fail(e);
   }
   await notifyCoach(profile.coachId, (base) => (to) => emails.checkInSubmitted(to, user.name, `${base}/coach/clients/${profile.id}?checkin=${checkInId}`));
+  after(() =>
+    sendPush([{ userId: profile.coachId, url: `/coach/clients/${profile.id}?checkin=${checkInId}` }], {
+      title: "New check-in",
+      body: `${user.name} sent their check-in.`,
+      tag: `checkin-${checkInId}`,
+    }),
+  );
   revalidatePath("/app", "layout");
   revalidatePath("/coach", "layout");
   return { ok: true, message: "Check-in sent. Your coach will reply here." };
@@ -179,6 +188,13 @@ export async function clientReplyAction(_: FormState, fd: FormData): Promise<For
   if (!ci) return { error: "Check-in not found." };
   await db.checkInReply.create({ data: { checkInId, authorId: user.id, body } });
   await notifyCoach(profile.coachId, (base) => (to) => emails.clientReplied(to, user.name, `${base}/coach/clients/${profile.id}?checkin=${checkInId}`));
+  after(() =>
+    sendPush([{ userId: profile.coachId, url: `/coach/clients/${profile.id}?checkin=${checkInId}` }], {
+      title: `${user.name} replied`,
+      body: "They replied on their check-in.",
+      tag: `checkin-${checkInId}`,
+    }),
+  );
   revalidatePath("/app/check-ins", "layout");
   return { ok: true, message: "Sent." };
 }

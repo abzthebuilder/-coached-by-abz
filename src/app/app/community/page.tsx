@@ -3,6 +3,8 @@ import { communityFor, defaultDisplayName, loadMessages, markRead } from "@/lib/
 import { joinCommunityAction, leaveCommunityAction, updateDisplayNameAction } from "@/app/actions/community";
 import { COMMUNITY_NAME, COMMUNITY_RULES, COMMUNITY_TAGLINE } from "@/content/community";
 import { ChatRoom } from "@/components/chat-room";
+import { NotificationsCard } from "@/components/notifications-card";
+import { vapidPublicKey } from "@/lib/push";
 import { ActionForm, SubmitButton } from "@/components/form";
 import { Card, Field, PageHeader } from "@/components/ui";
 
@@ -103,6 +105,7 @@ export default async function Community({ searchParams }: { searchParams: Promis
           </div>
         </details>
       </div>
+      <NotificationsCard publicKey={await vapidPublicKey()} compact />
       <ChatRoom initial={initial} isCoach={false} />
     </div>
   );

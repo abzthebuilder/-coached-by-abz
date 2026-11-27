@@ -7,6 +7,8 @@ import { fail, InputError, text } from "@/lib/parse";
 import { emailEnabled, sendEmail } from "@/lib/email";
 import { emails } from "@/lib/email-templates";
 import { siteUrl } from "@/lib/request-url";
+import { after } from "next/server";
+import { sendPush } from "@/lib/push";
 import { EXPERIENCE, GOALS, HEARD_FROM, TRAINS_AT } from "@/content/apply";
 import type { FormState } from "@/components/form";
 
@@ -70,6 +72,7 @@ export async function submitApplicationAction(_: FormState, fd: FormData): Promi
       },
     });
     if (emailEnabled()) await sendEmail(emails.newLead(coach.email, name, `${await siteUrl()}/coach/leads/${lead.id}`));
+    after(() => sendPush([{ userId: coach.id, url: `/coach/leads/${lead.id}` }], { title: "New application", body: `${name} applied for online coaching.`, tag: `lead-${lead.id}` }));
     return { ok: true };
   } catch (e) {
     return fail(e);

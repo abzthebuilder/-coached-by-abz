@@ -84,6 +84,7 @@ model User {
   communityMessages  CommunityMessage[]  @relation("CommunityAuthor")
   communityReactions CommunityReaction[]
   communityReports   CommunityReport[]
+  pushSubscriptions  PushSubscription[]
 }
 
 model Session {
@@ -446,6 +447,7 @@ model CommunityMember {
   joinedAt    DateTime  @default(now())
   lastReadAt  DateTime  @default(now())
   removedAt   DateTime? // removed by the coach: can't read or post
+  notify      String    @default("all") // community notifications: "all", "coach" (ABZ's messages only) or "off"
 
   @@index([coachId])
 }
@@ -488,4 +490,17 @@ model CommunityReport {
   createdAt  DateTime         @default(now())
 
   @@unique([messageId, reporterId])
+}
+
+/// One device that has turned on notifications (a Web Push subscription).
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }

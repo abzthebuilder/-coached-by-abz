@@ -4,16 +4,26 @@ import { PRIVACY_CONTACT } from "@/content/privacy";
 import { ChangePasswordForm } from "@/components/change-password";
 import { Card, CardTitle, PageHeader } from "@/components/ui";
 import { logoutAction } from "@/app/actions/auth";
+import { NotificationsCard } from "@/components/notifications-card";
+import { vapidPublicKey } from "@/lib/push";
+import { db } from "@/lib/db";
 
 export const metadata = { title: "Account" };
 
 export default async function Account() {
   const { user } = await requireClient();
+  const [publicKey, member] = await Promise.all([vapidPublicKey(), db.communityMember.findUnique({ where: { userId: user.id } })]);
   return (
     <div className="space-y-4">
       <PageHeader eyebrow="Your details" title="Account">
         <span className="text-bone">{user.name}</span> · {user.email}
       </PageHeader>
+
+      <Card>
+        <CardTitle eyebrow="This phone" title="Notifications" />
+        <p className="mb-3 text-sm text-mute">Get a notification when ABZ replies to your check-in, and for community messages if you&apos;ve joined.</p>
+        <NotificationsCard publicKey={publicKey} communityNotify={member && !member.removedAt ? (member.notify as "all" | "coach" | "off") : null} />
+      </Card>
 
       <Card>
         <CardTitle title="Change password" />

@@ -6,6 +6,8 @@ import { deleteReportedMessageAction, dismissReportsAction, setMemberRemovedActi
 import { COMMUNITY_NAME } from "@/content/community";
 import { fmtDay } from "@/lib/dates";
 import { ChatRoom } from "@/components/chat-room";
+import { NotificationsCard } from "@/components/notifications-card";
+import { vapidPublicKey } from "@/lib/push";
 import { Badge, Card, Empty, PageHeader, cx } from "@/components/ui";
 
 export const metadata = { title: "Community" };
@@ -61,6 +63,7 @@ export default async function CoachCommunity({ searchParams }: { searchParams: P
           <p className="mb-4 text-sm text-mute">
             Tap a message to react, pin it to the top, or delete it. Clients join from the Community button in their app.
           </p>
+          <NotificationsCard publicKey={await vapidPublicKey()} compact />
           <ChatRoom initial={initial!} isCoach />
         </>
       )}

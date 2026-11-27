@@ -2,6 +2,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { siteUrl } from "@/lib/request-url";
+import { after } from "next/server";
+import { sendPush } from "@/lib/push";
 import { emailEnabled, sendEmail } from "@/lib/email";
 import { emails } from "@/lib/email-templates";
 import { z } from "zod";
@@ -357,6 +359,14 @@ export async function coachReplyAction(_: FormState, fd: FormData): Promise<Form
     const u = ci.client.user;
     await sendEmail(emails.coachReplied(u.email, u.name, `${await baseUrl()}/app/check-ins/${ci.id}`));
   }
+  const clientUserId = ci.client.userId, checkInRef = ci.id;
+  after(() =>
+    sendPush([{ userId: clientUserId, url: `/app/check-ins/${checkInRef}` }], {
+      title: "ABZ replied to your check-in",
+      body: "Tap to read it.",
+      tag: `checkin-${checkInRef}`,
+    }),
+  );
   revalidatePath("/coach", "layout");
   return { ok: true, message: "Reply sent." };
 }
