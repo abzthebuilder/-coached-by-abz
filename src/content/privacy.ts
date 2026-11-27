@@ -2,7 +2,7 @@
 // Retention periods and the 18+ rule are business choices: change them here if you decide differently.
 
 export const PRIVACY_CONTACT = "ablofe1@gmail.com";
-export const PRIVACY_UPDATED = "24 November 2026";
+export const PRIVACY_UPDATED = "27 November 2026";
 
 export type PrivacySection = { heading: string; paragraphs?: string[]; bullets?: string[] };
 
@@ -19,7 +19,7 @@ export const privacySections: PrivacySection[] = [
     bullets: [
       "When you apply: whatever you enter in the application form, such as your name, contact details, goals and training history. The form is provided by Tally.",
       "When you become a client: your name, email address and timezone, plus a password. Your password is stored scrambled (hashed), so I can never see it.",
-      "What you log in the app: body weight, body measurements, calories and macros, steps, workouts (exercises, weights and reps), check-in answers (sleep, energy, how training and nutrition went, wins, struggles and questions) and progress photos.",
+      "What you log in the app: body weight, body measurements, your food diary, calories and macros, steps, workouts (exercises, weights and reps), check-in answers (sleep, energy, how training and nutrition went, wins, struggles and questions) and progress photos.",
       "What I add as your coach: your training plan, nutrition targets, tasks, replies to your check-ins and private notes to help me coach you.",
       "Technical information: one cookie that keeps you logged in, and basic server logs (such as IP addresses) that my hosting provider keeps for security.",
     ],
@@ -49,6 +49,7 @@ export const privacySections: PrivacySection[] = [
     bullets: [
       "Railway hosts the app and its database. Your information, including your progress photos, is stored on Railway's servers in Amsterdam, the Netherlands. Railway is a US company, so in limited cases (such as technical support) information may be accessed from outside the UK. Where that happens it's protected by Railway's data processing terms.",
       "Tally provides the application form.",
+      "Open Food Facts, a free public food database, is used when you search for a food or scan a barcode. Only the words you search for or the barcode number are sent, never your name or anything else about you. Barcode scanning happens on your phone: the camera picture is never uploaded.",
       "Resend sends the app's emails, such as invites, password resets, check-in reminders and reply notifications. These emails never contain your health information, only a link to log in. Resend is a US company, and your email address is protected by its data processing terms.",
     ],
   },

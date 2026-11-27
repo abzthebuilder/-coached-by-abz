@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { requireCoachedClient } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { fmtDay, relativeDay, todayIn, WEEKDAY_NAMES } from "@/lib/dates";
+import { addDays, fmtDay, relativeDay, todayIn, WEEKDAY_NAMES } from "@/lib/dates";
+import { MEALS } from "@/lib/food-math";
 import { activePlan, currentTarget, loadDayPoints } from "@/lib/progress";
 import { adherence, type Adherence } from "@/lib/metrics";
 import { statusForProfile } from "@/lib/checkins";
@@ -367,12 +368,68 @@ async function TasksView({ clientId }: { clientId: string }) {
 }
 
 async function LogsView({ clientId, today }: { clientId: string; today: string }) {
+  const foodEntries = await db.foodEntry.findMany({
+    where: { clientId, day: { gte: addDays(today, -6) } },
+    orderBy: [{ day: "desc" }, { createdAt: "asc" }],
+  });
+  const foodDays = [...new Set(foodEntries.map((e) => e.day))];
   const [points, workouts] = await Promise.all([
     loadDayPoints(clientId, today, 30),
     db.workoutLog.findMany({ where: { clientId }, orderBy: [{ day: "desc" }, { createdAt: "desc" }], take: 20, include: { sets: { orderBy: { setNumber: "asc" } } } }),
   ]);
   return (
     <div className="grid gap-4 lg:grid-cols-2">
+      <Card className="lg:col-span-2">
+        <CardTitle eyebrow="Last 7 days" title="Food diary" />
+        {foodDays.length === 0 ? (
+          <Empty>No foods logged in the last 7 days. If they track in another app, their daily totals are in Daily logs below.</Empty>
+        ) : (
+          <div className="space-y-2">
+            {foodDays.map((d, i) => {
+              const items = foodEntries.filter((e) => e.day === d);
+              const kcal = items.reduce((t, e) => t + e.kcal, 0);
+              const p = items.reduce((t, e) => t + e.proteinG, 0);
+              return (
+                <details key={d} open={i === 0} className="rounded-xl border border-line/70">
+                  <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-3">
+                    <span className="font-semibold">{fmtDay(d, { weekday: true })}</span>
+                    <span className="tabular text-sm text-mute">
+                      {fmtNum(kcal)} kcal · {fmtNum(p)} g protein · {items.length} items
+                    </span>
+                  </summary>
+                  <div className="border-t border-line/60 px-3 pb-3">
+                    {MEALS.map((m) => {
+                      const mi = items.filter((e) => e.meal === m.key);
+                      if (!mi.length) return null;
+                      return (
+                        <div key={m.key} className="mt-3">
+                          <div className="eyebrow mb-1">{m.label}</div>
+                          <ul className="space-y-1 text-sm">
+                            {mi.map((e) => (
+                              <li key={e.id} className="flex justify-between gap-3">
+                                <span className="min-w-0 truncate">
+                                  {e.name}
+                                  <span className="text-faint">
+                                    {e.brand ? ` · ${e.brand}` : ""}
+                                    {e.amount ? ` · ${fmtNum(e.amount, e.amount % 1 ? 1 : 0)} ${e.unit}` : ""}
+                                  </span>
+                                </span>
+                                <span className="tabular shrink-0 text-mute">
+                                  {fmtNum(e.kcal)} kcal · P{fmtNum(e.proteinG)} C{fmtNum(e.carbsG)} F{fmtNum(e.fatG)}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </details>
+              );
+            })}
+          </div>
+        )}
+      </Card>
       <Card>
         <CardTitle eyebrow="Last 30 days" title="Daily logs" />
         <div className="-mx-4 overflow-x-auto px-4">

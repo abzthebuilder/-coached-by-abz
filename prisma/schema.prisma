@@ -34,6 +34,19 @@ enum TaskFrequency {
   WEEKLY
 }
 
+enum FoodSource {
+  BUILTIN // the app's own list of common foods
+  OFF // Open Food Facts product (cached by barcode)
+  CUSTOM // created by a client from a label
+}
+
+enum MealSlot {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACKS
+}
+
 enum PhotoPose {
   FRONT
   SIDE
@@ -115,6 +128,8 @@ model ClientProfile {
   measurements Measurement[]
   photos       ProgressPhoto[]
   tasks        Task[]
+  foods        Food[]
+  foodEntries  FoodEntry[]
 
   @@index([coachId])
 }
@@ -233,6 +248,7 @@ model DailyLog {
   carbsG    Int?
   fatG      Int?
   steps     Int?
+  fromDiary Boolean       @default(false) // calories/macros are totals of the food diary
   updatedAt DateTime      @updatedAt
 
   @@unique([clientId, day])
@@ -321,4 +337,51 @@ model TaskCompletion {
   day    String
 
   @@unique([taskId, day])
+}
+
+/// A food with values per 100 g (or 100 ml). Built-in and Open Food Facts rows are shared;
+/// CUSTOM rows belong to one client.
+model Food {
+  id            String         @id @default(cuid())
+  source        FoodSource
+  name          String
+  brand         String         @default("")
+  barcode       String?
+  unit          String         @default("g") // "g" or "ml"
+  kcal          Float
+  proteinG      Float
+  carbsG        Float
+  fatG          Float
+  servingG      Float?
+  servingLabel  String         @default("")
+  ownerClientId String?
+  ownerClient   ClientProfile? @relation(fields: [ownerClientId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+  entries       FoodEntry[]
+
+  @@index([source, barcode])
+  @@index([ownerClientId])
+}
+
+/// One food logged in a meal. Name and nutrition are copied at the time of logging,
+/// so the diary never changes if a food is later edited.
+model FoodEntry {
+  id        String        @id @default(cuid())
+  clientId  String
+  client    ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  day       String // YYYY-MM-DD
+  meal      MealSlot
+  foodId    String?
+  food      Food?         @relation(fields: [foodId], references: [id], onDelete: SetNull)
+  name      String
+  brand     String        @default("")
+  amount    Float? // grams or ml; null for a quick add
+  unit      String        @default("g")
+  kcal      Float
+  proteinG  Float
+  carbsG    Float
+  fatG      Float
+  createdAt DateTime      @default(now())
+
+  @@index([clientId, day])
 }

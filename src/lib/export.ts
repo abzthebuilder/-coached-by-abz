@@ -30,6 +30,8 @@ export async function buildClientExport(clientId: string): Promise<{ zip: Uint8A
       measurements: { orderBy: { day: "asc" } },
       photos: { orderBy: { day: "asc" } },
       tasks: { orderBy: { createdAt: "asc" }, include: { completions: { orderBy: { day: "asc" } } } },
+      foodEntries: { orderBy: [{ day: "asc" }, { createdAt: "asc" }] },
+      foods: { orderBy: { createdAt: "asc" } },
     },
   });
 
@@ -88,6 +90,8 @@ export async function buildClientExport(clientId: string): Promise<{ zip: Uint8A
     })),
     measurements: p.measurements.map(({ day, chestCm, waistCm, hipsCm, armCm, thighCm, neckCm, notes }) => ({ day, chestCm, waistCm, hipsCm, armCm, thighCm, neckCm, notes })),
     progressPhotos: photos,
+    foodDiary: p.foodEntries.map(({ day, meal, name, brand, amount, unit, kcal, proteinG, carbsG, fatG }) => ({ day, meal, name, brand, amount, unit, kcal, proteinG, carbsG, fatG })),
+    myFoods: p.foods.map(({ name, brand, barcode, unit, kcal, proteinG, carbsG, fatG, servingG, servingLabel }) => ({ name, brand, barcode, per100: unit, kcal, proteinG, carbsG, fatG, servingG, servingLabel })),
     tasks: p.tasks.map((t) => ({ title: t.title, notes: t.notes, frequency: t.frequency, dueDay: t.dueDay, active: t.active, completedOn: t.completions.map((c) => c.day) })),
   };
 
@@ -102,6 +106,7 @@ export async function buildClientExport(clientId: string): Promise<{ zip: Uint8A
         `workouts.csv       Every logged set`,
         `check-ins.csv      Your check-ins`,
         `measurements.csv   Body measurements`,
+        `food-diary.csv     Every food you logged`,
         `photos/            Your progress photos`,
         ``,
         `Questions? Email ablofe1@gmail.com`,
@@ -115,6 +120,9 @@ export async function buildClientExport(clientId: string): Promise<{ zip: Uint8A
         ["day", "type", "weight_kg", "sleep_hours", "sleep_quality", "energy", "training", "training_notes", "nutrition", "nutrition_notes", "wins", "struggles", "questions"],
         ...data.checkIns.map((c) => [c.day, c.type, c.bodyWeightKg, c.sleepHours, c.sleepQuality, c.energy, c.trainingRating, c.trainingNotes, c.nutritionRating, c.nutritionNotes, c.wins, c.struggles, c.questions]),
       ]),
+    ),
+    "food-diary.csv": strToU8(
+      csv([["day", "meal", "food", "brand", "amount", "unit", "kcal", "protein_g", "carbs_g", "fat_g"], ...data.foodDiary.map((e) => [e.day, e.meal, e.name, e.brand, e.amount, e.unit, e.kcal, e.proteinG, e.carbsG, e.fatG])]),
     ),
     "measurements.csv": strToU8(csv([["day", "chest_cm", "waist_cm", "hips_cm", "arm_cm", "thigh_cm", "neck_cm", "notes"], ...data.measurements.map((m) => [m.day, m.chestCm, m.waistCm, m.hipsCm, m.armCm, m.thighCm, m.neckCm, m.notes])])),
     ...photoFiles,

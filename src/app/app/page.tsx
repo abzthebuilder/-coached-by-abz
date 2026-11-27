@@ -56,7 +56,12 @@ export default async function Today({ searchParams }: { searchParams: Promise<{ 
 
       <HomeScreenTip />
 
-      <QuickActions workoutHref={next ? `/app/training/log/${next.id}` : "/app/training/log/custom"} today={today} stepsToday={todayLog?.steps ?? null} />
+      <QuickActions
+        workoutHref={next ? `/app/training/log/${next.id}` : "/app/training/log/custom"}
+        foodHref={`/app/nutrition/add?day=${today}&meal=${hour < 11 ? "BREAKFAST" : hour < 15 ? "LUNCH" : hour < 21 ? "DINNER" : "SNACKS"}`}
+        today={today}
+        stepsToday={todayLog?.steps ?? null}
+      />
 
       {/* Next workout */}
       <Card>
@@ -90,7 +95,7 @@ export default async function Today({ searchParams }: { searchParams: Promise<{ 
           title="Nutrition"
           action={
             <Link href="/app/nutrition" className="min-h-11 text-sm font-semibold text-gold">
-              Log food
+              Food diary
             </Link>
           }
         />

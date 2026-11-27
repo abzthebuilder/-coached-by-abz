@@ -43,6 +43,21 @@ Progress photos are never in `/public`. They're served only through `/api/photos
 - `STORAGE_DRIVER=local`: files go in `STORAGE_DIR`. Use a persistent disk or volume.
 - `STORAGE_DRIVER=s3`: uses any S3-compatible bucket (AWS S3, Cloudflare R2, Backblaze). Keep the bucket **private**.
 
+## Food diary
+
+Clients log food by meal on **Nutrition**: search, scan a barcode with the phone camera, create a food
+from a label, or quick-add calories. The day's calories and macros are worked out from the diary
+(on the server, from stored food data), so Today, charts and adherence use them automatically.
+Clients who use another app can still type daily totals instead. The coach sees the diary on a
+client's **Logs** tab.
+
+- Common foods: `src/content/foods.ts` (typical UK values per 100 g).
+- Products: [Open Food Facts](https://world.openfoodfacts.org) (free, ODbL; attribution shown in the app).
+  Only the search words or barcode are sent. Products are saved once looked up by barcode.
+- Barcode reading runs on the phone; the reader (`zxing-wasm`) is copied to `/public/vendor` at build time
+  and served from this site.
+- Optional env: `OFF_BASE_URL`, `OFF_SEARCH_URL` (used by tests to point at `tests/e2e/off-stub.mjs`).
+
 ## Emails (optional)
 
 Out of the box the app sends no email: you copy invite and reset links by hand. Once you have your own
@@ -83,7 +98,8 @@ Emails never include health information, only a short note and a link to log in.
 ```bash
 npm test                         # unit tests: macro maths, check-in schedule, week comparison, adherence
 npm run db:seed                  # demo coach + 2 demo clients (dev only)
-# e2e expects the server started with EMAIL_DEV_LOG=<file> so emails are written to a file:
+# e2e expects: node tests/e2e/off-stub.mjs 4010, and the server started with
+# OFF_BASE_URL=http://localhost:4010 OFF_SEARCH_URL=http://localhost:4010 EMAIL_DEV_LOG=<file> DISABLE_REMINDERS=1
 BASE_URL=http://localhost:3000 NODE_PATH=$(npm root -g) npm run test:e2e
 ```
 

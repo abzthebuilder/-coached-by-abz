@@ -11,6 +11,8 @@ import type { FormState } from "@/components/form";
 import { emailEnabled, sendEmail } from "@/lib/email";
 import { emails } from "@/lib/email-templates";
 import { siteUrl } from "@/lib/request-url";
+import { entryNutrition, recomputeDiaryTotals, resolveFood } from "@/lib/food";
+import { isBarcode, isMeal } from "@/lib/food-math";
 import { z } from "zod";
 
 // Every action here derives the client from the session. None of them accept a client id,
@@ -42,6 +44,8 @@ export async function logDailyAction(_: FormState, fd: FormData): Promise<FormSt
     for (const [key, o] of Object.entries(DAILY_FIELDS)) {
       if (fd.has(key)) data[key] = num(fd, key, o.label, o);
     }
+    const existing = await db.dailyLog.findUnique({ where: { clientId_day: { clientId: profile.id, day } } });
+    if (existing?.fromDiary) for (const k of ["calories", "proteinG", "carbsG", "fatG"]) delete data[k]; // calculated from the food diary
     if (Object.keys(data).length === 0) throw new InputError("Nothing to save.");
     if (Object.values(data).every((v) => v === null) && fd.get("allowClear") !== "1")
       throw new InputError("Enter at least one number.");
@@ -253,4 +257,108 @@ export async function toggleTaskAction(fd: FormData) {
   if (existing) await db.taskCompletion.delete({ where: { id: existing.id } });
   else await db.taskCompletion.create({ data: { taskId, day } });
   revalidatePath("/app");
+}
+
+// ---------- Food diary ----------
+
+function mealFrom(fd: FormData) {
+  const meal = String(fd.get("meal") ?? "");
+  if (!isMeal(meal)) throw new InputError("Choose a meal.");
+  return meal;
+}
+
+/** Adds a food to a meal. Nutrition is worked out on the server from the stored food. */
+export async function addFoodEntryAction(_: FormState, fd: FormData): Promise<FormState> {
+  const { user, profile } = await requireClient();
+  try {
+    const day = logDay(fd, todayIn(user.timezone));
+    const meal = mealFrom(fd);
+    const amount = num(fd, "amount", "Amount", { min: 0.1, max: 5000 });
+    if (amount === null) throw new InputError("Enter how much you had.");
+    const food = await resolveFood(text(fd, "ref", 80), profile.id);
+    if (!food) throw new InputError("That food couldn't be found. Search for it again.");
+    const n = entryNutrition(food, amount);
+    await db.foodEntry.create({
+      data: { clientId: profile.id, day, meal, foodId: food.id, name: food.name, brand: food.brand, amount, unit: food.unit, ...n },
+    });
+    await recomputeDiaryTotals(profile.id, day);
+  } catch (e) {
+    return fail(e);
+  }
+  revalidatePath("/app", "layout");
+  return { ok: true, message: "Added." };
+}
+
+/** Logs calories (and optionally macros) without a food, e.g. a meal out. */
+export async function quickAddAction(_: FormState, fd: FormData): Promise<FormState> {
+  const { user, profile } = await requireClient();
+  try {
+    const day = logDay(fd, todayIn(user.timezone));
+    const meal = mealFrom(fd);
+    const kcal = num(fd, "kcal", "Calories", { min: 0, max: 5000, int: true });
+    if (kcal === null) throw new InputError("Enter the calories.");
+    const m = (k: string, l: string) => num(fd, k, l, { min: 0, max: 500 }) ?? 0;
+    await db.foodEntry.create({
+      data: {
+        clientId: profile.id,
+        day,
+        meal,
+        name: text(fd, "name", 120) || "Quick add",
+        kcal,
+        proteinG: m("proteinG", "Protein"),
+        carbsG: m("carbsG", "Carbs"),
+        fatG: m("fatG", "Fat"),
+      },
+    });
+    await recomputeDiaryTotals(profile.id, day);
+  } catch (e) {
+    return fail(e);
+  }
+  revalidatePath("/app", "layout");
+  return { ok: true, message: "Added." };
+}
+
+/** Saves a food from a label so the client can log it again later. */
+export async function createCustomFoodAction(_: FormState, fd: FormData): Promise<FormState> {
+  const { profile } = await requireClient();
+  try {
+    const name = text(fd, "name", 120);
+    if (!name) throw new InputError("Give the food a name.");
+    const barcode = text(fd, "barcode", 20).replace(/\s/g, "");
+    if (barcode && !isBarcode(barcode)) throw new InputError("A barcode is 8 to 14 digits.");
+    const per = (k: string, l: string, max: number) => {
+      const v = num(fd, k, l, { min: 0, max });
+      if (v === null) throw new InputError(`Enter ${l.toLowerCase()} per 100.`);
+      return v;
+    };
+    const servingG = num(fd, "servingG", "Serving size", { min: 1, max: 2000 });
+    const food = await db.food.create({
+      data: {
+        source: "CUSTOM",
+        ownerClientId: profile.id,
+        name,
+        brand: text(fd, "brand", 80),
+        barcode: barcode || null,
+        unit: fd.get("unit") === "ml" ? "ml" : "g",
+        kcal: per("kcal", "Calories", 950),
+        proteinG: per("proteinG", "Protein", 100),
+        carbsG: per("carbsG", "Carbs", 100),
+        fatG: per("fatG", "Fat", 100),
+        servingG,
+        servingLabel: servingG ? text(fd, "servingLabel", 40) || "1 serving" : "",
+      },
+    });
+    return { ok: true, message: "Food saved.", ref: `d:${food.id}` };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function deleteFoodEntryAction(fd: FormData) {
+  const { profile } = await requireClient();
+  const entry = await db.foodEntry.findFirst({ where: { id: text(fd, "id", 64), clientId: profile.id } });
+  if (!entry) return;
+  await db.foodEntry.delete({ where: { id: entry.id } });
+  await recomputeDiaryTotals(profile.id, entry.day);
+  revalidatePath("/app", "layout");
 }

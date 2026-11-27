@@ -32,6 +32,13 @@ const unzip = async (res) => {
   return { files, json: JSON.parse(strFromU8(files["data.json"])), text: (n) => strFromU8(files[n]) };
 };
 const COACH_EMAIL = "coach@demo.coachedbyabz.com";
+const OFF_STUB = process.env.OFF_STUB_URL || "http://localhost:4010";
+try {
+  await fetch(`${OFF_STUB}/api/v2/product/5000000000012`);
+} catch {
+  throw new Error(`Start the food database stub first (node tests/e2e/off-stub.mjs 4010) and run the app with OFF_BASE_URL=${OFF_STUB}`);
+}
+const todayLondon = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
 
 const base = process.env.BASE_URL || "http://localhost:3000";
 const run = Date.now().toString(36);
@@ -222,6 +229,111 @@ try {
     assert.equal(r.status(), 200);
   });
 
+  await step("Client A logs food: common food, product search, barcode, own food from a label, quick add", async () => {
+    await A.goto("/app");
+    await A.getByRole("link", { name: "Log Food" }).click();
+    await A.waitForURL(/\/app\/nutrition\/add/);
+    // A common food from the built-in list
+    await A.getByLabel("Search foods").fill("banana");
+    await A.getByRole("button", { name: "Search" }).click();
+    await A.getByRole("button", { name: /^Banana/ }).click();
+    await A.getByRole("button", { name: /^Add to/ }).click();
+    await A.waitForURL(/added=1/);
+    await A.getByText("Added to your food diary.").waitFor();
+    // A supermarket product from the food database, into Breakfast, by grams
+    await A.getByRole("link", { name: "Add food to Breakfast" }).click();
+    await A.getByLabel("Search foods").fill("yogurt");
+    await A.getByRole("button", { name: "Search" }).click();
+    await A.getByRole("button", { name: /Greek Style Yogurt/ }).click();
+    await A.getByRole("button", { name: "Grams" }).click();
+    await A.getByLabel("Amount in g").fill("200");
+    await A.getByText("120", { exact: true }).waitFor(); // 60 kcal per 100 g x 200 g
+    await A.getByRole("button", { name: "Add to breakfast" }).click();
+    await A.waitForURL(/added=1/);
+    // Barcode typed in by hand, 2 servings, into Snacks
+    await A.getByRole("link", { name: "Add food to Snacks" }).click();
+    await A.getByRole("tab", { name: "Scan" }).click();
+    await A.getByLabel("Barcode number").fill("5000000000029");
+    await A.getByRole("button", { name: "Look up" }).click();
+    await A.getByRole("heading", { name: "Chocolate Protein Bar" }).waitFor();
+    await A.getByLabel("Number of servings").fill("2");
+    await A.getByRole("button", { name: "Add to snacks" }).click();
+    await A.waitForURL(/added=1/);
+    // Unknown barcode: create it from the label once, then log it
+    await A.getByRole("link", { name: "Add food to Snacks" }).click();
+    await A.getByRole("tab", { name: "Scan" }).click();
+    await A.getByLabel("Barcode number").fill("5012345678900");
+    await A.getByRole("button", { name: "Look up" }).click();
+    await A.getByText("That barcode isn't in the database yet").waitFor();
+    assert.equal(await A.getByLabel("Barcode (optional)").inputValue(), "5012345678900");
+    await A.getByLabel("Food name").fill(`Homemade flapjack ${run}`);
+    await A.getByLabel("Calories per 100 g").fill("420");
+    await A.getByLabel("Protein (g) per 100 g").fill("8");
+    await A.getByLabel("Carbs (g) per 100 g").fill("55");
+    await A.getByLabel("Fat (g) per 100 g").fill("18");
+    await A.getByLabel("Serving size (g, optional)").fill("50");
+    await A.getByLabel("Serving name (optional)").fill("1 square");
+    await A.getByRole("button", { name: "Save food" }).click();
+    await A.getByRole("heading", { name: `Homemade flapjack ${run}` }).waitFor();
+    await A.getByRole("button", { name: "Add to snacks" }).click();
+    await A.waitForURL(/added=1/);
+    // Quick add for a meal out, into Dinner
+    await A.getByRole("link", { name: "Add food to Dinner" }).click();
+    await A.getByRole("tab", { name: "Quick add" }).click();
+    await A.getByLabel("What was it? (optional)").fill("Chicken wrap, meal out");
+    await A.getByLabel("Calories").fill("650");
+    await A.getByLabel("Protein (g)").fill("40");
+    await A.getByRole("button", { name: "Add to dinner" }).click();
+    await A.waitForURL(/added=1/);
+
+    // Totals: banana 107 + yogurt 120 + 2 bars 420 + flapjack 210 + wrap 650 = 1507 kcal
+    const day = todayLondon();
+    const log = await db.dailyLog.findUnique({ where: { clientId_day: { clientId: profA.id, day } } });
+    assert.equal(log.fromDiary, true, "totals come from the diary");
+    assert.equal(log.calories, 1507);
+    assert.equal(log.proteinG, Math.round(1.3 + 20 + 36 + 4 + 40));
+    await A.getByText("1,507").first().waitFor();
+    assert.equal(await A.getByLabel("Calories (kcal)").count(), 0, "manual totals hidden while the diary is used");
+    // Remove the quick add: totals follow
+    await A.getByRole("button", { name: "Remove Chicken wrap, meal out" }).click();
+    await A.getByText("857").first().waitFor();
+    assert.equal((await db.dailyLog.findUnique({ where: { clientId_day: { clientId: profA.id, day } } })).calories, 857);
+    // Today screen uses the diary totals
+    await A.goto("/app");
+    await A.getByText("857").first().waitFor();
+    // Recent foods make re-logging one tap
+    await A.goto("/app/nutrition/add?meal=LUNCH");
+    for (const n of ["Banana", "Greek Style Yogurt", "Chocolate Protein Bar", `Homemade flapjack ${run}`]) await A.getByRole("button", { name: new RegExp(n) }).first().waitFor();
+    // When the classic product search is busy, the newer search answers instead
+    await A.getByLabel("Search foods").fill("busy day");
+    await A.getByRole("button", { name: "Search" }).click();
+    await A.getByRole("button", { name: /Busy Day Oat Bar/ }).click();
+    await A.getByRole("heading", { name: "Busy Day Oat Bar" }).waitFor();
+    await A.getByText("Oatco").waitFor();
+    await A.getByRole("button", { name: "Add to lunch" }).click();
+    await A.waitForURL(/added=1/);
+    assert.equal((await db.dailyLog.findUnique({ where: { clientId_day: { clientId: profA.id, day } } })).calories, 857 + 180);
+  });
+
+  await step("Barcode scanning with the phone camera reads a real barcode", async () => {
+    const video = path.join(require("node:os").tmpdir(), `abz-barcode-${run}.y4m`);
+    execFileSync("python3", [path.resolve("tests/e2e/make-barcode-video.py"), "5000000000012", video]);
+    const camBrowser = await chromium.launch({
+      args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", `--use-file-for-fake-video-capture=${video}`],
+    });
+    try {
+      const ctx = await camBrowser.newContext({ ...devices["iPhone 13"], baseURL: base, permissions: ["camera"] });
+      const p = await ctx.newPage();
+      await login(p, clients.A.email, clients.A.password);
+      await p.goto("/app/nutrition/add?meal=BREAKFAST");
+      await p.getByRole("tab", { name: "Scan" }).click();
+      await p.getByRole("heading", { name: "Greek Style Yogurt" }).waitFor({ timeout: 20000 });
+    } finally {
+      await camBrowser.close();
+      fs.rmSync(video, { force: true });
+    }
+  });
+
   await step("Client A submits a check-in", async () => {
     await A.goto("/app");
     await A.getByRole("link", { name: "Submit Check-in" }).first().click();
@@ -244,6 +356,10 @@ try {
     await row.click();
     await coach.getByText("This week so far").waitFor();
     await coach.getByText(`Hit every session ${run}`).waitFor();
+    await coach.goto(coach.url().split("?")[0] + "?view=logs");
+    await coach.getByRole("heading", { name: "Food diary" }).waitFor();
+    await coach.getByText(`Homemade flapjack ${run}`).waitFor();
+    await coach.goBack();
     await coach.getByLabel("Reply").fill("Great week. Keep it up.");
     await coach.getByRole("button", { name: "Send reply" }).click();
     await coach.getByText("Reply sent").waitFor();
@@ -277,6 +393,24 @@ try {
       assert.ok(!html.includes(`Hit every session ${run}`), `A's check-in not in ${path}`);
       assert.ok(!html.includes("10,432") && !html.includes("Walk after dinner") && !html.includes("Test block"), `A's data not in ${path}`);
     }
+    // A's own foods are private to A.
+    const flapjack = await db.food.findFirst({ where: { ownerClientId: profA.id, source: "CUSTOM" } });
+    const bSearch = await (await B.request.get(`/api/food/search?q=${encodeURIComponent("flapjack")}`)).json();
+    assert.ok(!bSearch.hits.some((h) => h.ref === `d:${flapjack.id}`), "A's food not in B's search");
+    const bScan = await B.request.get("/api/food/barcode/5012345678900");
+    assert.equal(bScan.status(), 404, "A's barcode food not found for B");
+    // Even a tampered form can't log A's food for B.
+    await B.goto("/app/nutrition/add?meal=LUNCH");
+    await B.getByLabel("Search foods").fill("banana");
+    await B.getByRole("button", { name: "Search" }).click();
+    await B.getByRole("button", { name: /^Banana/ }).click();
+    await B.locator('input[name="ref"]').evaluate((el, ref) => (el.value = ref), `d:${flapjack.id}`);
+    await B.getByRole("button", { name: /^Add to/ }).click();
+    await B.getByText("That food couldn't be found").waitFor();
+    assert.equal(await db.foodEntry.count({ where: { clientId: profB.id } }), 0, "nothing logged for B");
+    const anonFood = await browser.newContext({ baseURL: base });
+    assert.equal((await anonFood.request.get("/api/food/search?q=banana")).status(), 404, "food search needs a login");
+    await anonFood.close();
     // And B's own data stays B's.
     await B.goto("/app/nutrition");
     await B.getByLabel("Steps").fill("777");
@@ -336,6 +470,7 @@ try {
     const photoFile = Object.keys(a.files).find((f) => f.startsWith("photos/"));
     assert.ok(photoFile && a.files[photoFile].length > 0, "progress photo included");
     assert.ok(a.text("workouts.csv").includes("Bench Press"), "workouts spreadsheet");
+    assert.ok(a.text("food-diary.csv").includes("Banana") && a.json.myFoods.some((f) => f.name.startsWith("Homemade flapjack")), "food diary and own foods included");
     for (const pg of [B, A]) assert.equal((await pg.request.get(`/api/export/client/${profA.id}`)).status(), 404, "clients can't use the coach export");
     const anon = await browser.newContext({ baseURL: base });
     assert.equal((await anon.request.get("/api/export/me")).status(), 404);
@@ -408,6 +543,8 @@ try {
     assert.equal(await db.clientProfile.findUnique({ where: { id: profA.id } }), null, "profile gone");
     assert.equal(await db.checkIn.count({ where: { clientId: profA.id } }), 0, "check-ins gone");
     assert.equal(await db.progressPhoto.count({ where: { clientId: profA.id } }), 0, "photo records gone");
+    assert.equal(await db.foodEntry.count({ where: { clientId: profA.id } }), 0, "food diary gone");
+    assert.equal(await db.food.count({ where: { ownerClientId: profA.id } }), 0, "their own foods gone");
     assert.ok(!fs.existsSync(photoPath), "photo file removed from storage");
     await clients.A.page2.goto("/app");
     assert.match(clients.A.page2.url(), /\/login/, "their login no longer works");

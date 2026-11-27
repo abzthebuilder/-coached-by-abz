@@ -3,7 +3,7 @@ import { useFormStatus } from "react-dom";
 import { createContext, startTransition, useActionState, useContext, useEffect, useRef, type FormEvent, type ReactNode } from "react";
 import { Button, type BtnVariant } from "./ui";
 
-export type FormState = { ok?: boolean; error?: string; message?: string; link?: string } | undefined;
+export type FormState = { ok?: boolean; error?: string; message?: string; link?: string; ref?: string } | undefined;
 
 const PendingContext = createContext<boolean | null>(null);
 

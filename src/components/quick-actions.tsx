@@ -7,7 +7,7 @@ import { logDailyAction } from "@/app/actions/client";
 import { Field } from "./ui";
 
 const tile =
-  "flex min-h-[92px] w-full flex-col items-center justify-center gap-1.5 rounded-2xl border border-line/70 bg-char p-2 text-center text-sm font-semibold active:bg-char-3";
+  "flex min-h-[84px] w-full flex-col items-center justify-center gap-1.5 rounded-2xl border border-line/70 bg-char p-2 text-center text-sm font-semibold active:bg-char-3";
 
 function Icon({ d }: { d: string }) {
   return (
@@ -17,13 +17,27 @@ function Icon({ d }: { d: string }) {
   );
 }
 
-export function QuickActions({ workoutHref, today, stepsToday }: { workoutHref: string; today: string; stepsToday: number | null }) {
+export function QuickActions({
+  workoutHref,
+  foodHref,
+  today,
+  stepsToday,
+}: {
+  workoutHref: string;
+  foodHref: string;
+  today: string;
+  stepsToday: number | null;
+}) {
   const router = useRouter();
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div className="grid grid-cols-2 gap-2">
       <Link href={workoutHref} className={tile}>
         <Icon d="M3 10v4M6 7v10M9 12h6M18 7v10M21 10v4M6 12h3M15 12h3" />
         Log Workout
+      </Link>
+      <Link href={foodHref} className={tile}>
+        <Icon d="M7 3v8a2 2 0 0 0 2 2v8M5 3v5M9 3v5M17 21V3c-2 1-3 3.5-3 7 0 2 1 3 3 3" />
+        Log Food
       </Link>
       <Sheet
         title="Log steps"
