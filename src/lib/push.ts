@@ -2,9 +2,12 @@ import "server-only";
 import fs from "node:fs/promises";
 import webpush from "web-push";
 import { db } from "./db";
+import { vapidPairMatches, vapidSubject } from "./vapid";
+import { PRIVACY_CONTACT } from "@/content/privacy";
 
 // Phone notifications (Web Push). Keys are made automatically the first time and kept in the database,
-// unless VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY are set. PUSH_DEV_LOG=<file> writes notifications to a file
+// unless VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY are set. A stored pair that doesn't belong together is
+// replaced (and the devices signed up with it are cleared, so they can turn notifications on again). PUSH_DEV_LOG=<file> writes notifications to a file
 // instead of sending them (used by the automated tests).
 
 export type PushPayload = { title: string; body: string; url: string; tag?: string };
@@ -12,28 +15,45 @@ export type PushPayload = { title: string; body: string; url: string; tag?: stri
 let keys: Promise<{ publicKey: string; privateKey: string }> | null = null;
 
 async function loadKeys() {
-  if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY)
-    return { publicKey: process.env.VAPID_PUBLIC_KEY, privateKey: process.env.VAPID_PRIVATE_KEY };
+  if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    const env = { publicKey: process.env.VAPID_PUBLIC_KEY.trim(), privateKey: process.env.VAPID_PRIVATE_KEY.trim() };
+    if (!vapidPairMatches(env)) console.error("Push: VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY don't belong together; notifications will be refused.");
+    return env;
+  }
   const read = async () => {
     const rows = await db.siteSetting.findMany({ where: { key: { in: ["vapidPublic", "vapidPrivate"] } } });
     const m = Object.fromEntries(rows.map((r) => [r.key, r.value]));
     return m.vapidPublic && m.vapidPrivate ? { publicKey: m.vapidPublic, privateKey: m.vapidPrivate } : null;
   };
   const existing = await read();
-  if (existing) return existing;
+  if (existing && vapidPairMatches(existing)) return { publicKey: existing.publicKey.trim(), privateKey: existing.privateKey.trim() };
   const fresh = webpush.generateVAPIDKeys();
-  try {
-    await db.$transaction([
-      db.siteSetting.create({ data: { key: "vapidPublic", value: fresh.publicKey } }),
-      db.siteSetting.create({ data: { key: "vapidPrivate", value: fresh.privateKey } }),
-    ]);
-    return fresh;
-  } catch {
-    // Another request made them at the same moment: use those.
-    const again = await read();
-    if (again) return again;
-    throw new Error("Couldn't set up notification keys");
+  if (existing) {
+    // The saved keys don't belong together, so every notification would be refused. Replace them,
+    // unless another server got there first, and clear the devices that signed up with the old key.
+    console.error("Push: saved notification keys didn't match; replacing them. Devices need to turn notifications on again.");
+    const replaced = await db.$transaction(async (tx) => {
+      const r = await tx.siteSetting.updateMany({ where: { key: "vapidPublic", value: existing.publicKey }, data: { value: fresh.publicKey } });
+      if (r.count === 0) return false;
+      await tx.siteSetting.update({ where: { key: "vapidPrivate" }, data: { value: fresh.privateKey } });
+      await tx.pushSubscription.deleteMany({});
+      return true;
+    });
+    if (replaced) return fresh;
+  } else {
+    try {
+      await db.$transaction([
+        db.siteSetting.create({ data: { key: "vapidPublic", value: fresh.publicKey } }),
+        db.siteSetting.create({ data: { key: "vapidPrivate", value: fresh.privateKey } }),
+      ]);
+      return fresh;
+    } catch {
+      /* another request made them at the same moment: use those */
+    }
   }
+  const again = await read();
+  if (again && vapidPairMatches(again)) return again;
+  throw new Error("Couldn't set up notification keys");
 }
 
 export function vapidKeys() {
@@ -48,10 +68,9 @@ export async function vapidPublicKey() {
   return (await vapidKeys()).publicKey;
 }
 
-const SUBJECT = (() => {
-  const u = process.env.APP_URL || "";
-  return u.startsWith("https://") ? u : "https://coachedbyabz.com";
-})();
+// Who the notifications are from, as Apple and Google see it: VAPID_SUBJECT if set, otherwise the
+// business contact email. Apple rejects anything that isn't a clean https: URL or mailto: address.
+const SUBJECT = vapidSubject(process.env.VAPID_SUBJECT, PRIVACY_CONTACT);
 
 export type PushOutcome = { sent: number; removed: number; failed: { service: string; status?: number; reason: string }[] };
 

@@ -113,3 +113,26 @@ describe("phone notifications", () => {
     expect((req.body as Buffer).length).toBeGreaterThan(40);
   });
 });
+
+describe("phone notification signing", () => {
+  it("uses a clean contact Apple accepts", async () => {
+    const { vapidSubject } = await import("@/lib/vapid");
+    expect(vapidSubject(undefined, "coach@example.com")).toBe("mailto:coach@example.com");
+    expect(vapidSubject("  mailto:hi@example.com \n", "x@example.com")).toBe("mailto:hi@example.com");
+    expect(vapidSubject("https://coachedbyabz.com\n", "x@example.com")).toBe("https://coachedbyabz.com");
+    expect(vapidSubject("mailto: <hi@example.com>", "x@example.com")).toBe("mailto:x@example.com");
+    expect(vapidSubject("https://localhost", "x@example.com")).toBe("mailto:x@example.com");
+    expect(vapidSubject("https://coachedbyabz.com/app", "x@example.com")).toBe("mailto:x@example.com");
+  });
+
+  it("spots signing keys that don't belong together", async () => {
+    const { vapidPairMatches } = await import("@/lib/vapid");
+    const webpush = (await import("web-push")).default;
+    const a = webpush.generateVAPIDKeys();
+    const b = webpush.generateVAPIDKeys();
+    expect(vapidPairMatches(a)).toBe(true);
+    expect(vapidPairMatches({ publicKey: a.publicKey + "\n", privateKey: ` ${a.privateKey}` })).toBe(true);
+    expect(vapidPairMatches({ publicKey: a.publicKey, privateKey: b.privateKey })).toBe(false);
+    expect(vapidPairMatches({ publicKey: "junk", privateKey: "junk" })).toBe(false);
+  });
+});
