@@ -92,11 +92,12 @@ export async function buildClientExport(clientId: string): Promise<{ zip: Uint8A
     measurements: p.measurements.map(({ day, chestCm, waistCm, hipsCm, armCm, thighCm, neckCm, notes }) => ({ day, chestCm, waistCm, hipsCm, armCm, thighCm, neckCm, notes })),
     progressPhotos: photos,
     application: p.lead
-      ? (({ name, email, phone, goal, experience, daysPerWeek, trainsAt, about, injuries, health, healthDetails, heardFrom, consentAt, createdAt }) => ({
+      ? (({ name, email, phone, instagram, goal, experience, daysPerWeek, trainsAt, about, injuries, health, healthDetails, heardFrom, consentAt, createdAt }) => ({
           appliedAt: createdAt,
           name,
           email,
           phone,
+          instagram,
           goal,
           experience,
           daysPerWeek,

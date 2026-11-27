@@ -407,7 +407,8 @@ model Lead {
   status        LeadStatus     @default(NEW)
   name          String
   email         String
-  phone         String         @default("")
+  phone         String         @default("") // no longer asked; kept for older applications
+  instagram     String         @default("") // username without @
   goal          String
   experience    String
   daysPerWeek   Int?

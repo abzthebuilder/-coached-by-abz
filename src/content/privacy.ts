@@ -17,7 +17,7 @@ export const privacySections: PrivacySection[] = [
   {
     heading: "What I collect",
     bullets: [
-      "When you apply: what you enter in the application form, such as your name, contact details, goals, training history and anything you tell me about injuries.",
+      "When you apply: what you enter in the application form, such as your name, email, Instagram username (if you give it), goals, training history and anything you tell me about injuries.",
       "When you become a client: your name, email address and timezone, plus a password. Your password is stored scrambled (hashed), so I can never see it.",
       "What you log in the app: body weight, body measurements, your food diary, calories and macros, steps, workouts (exercises, weights and reps), check-in answers (sleep, energy, how training and nutrition went, wins, struggles and questions) and progress photos.",
       "What I add as your coach: your training plan, nutrition targets, tasks, replies to your check-ins and private notes to help me coach you.",

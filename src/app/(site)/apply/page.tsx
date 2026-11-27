@@ -20,7 +20,7 @@ export default async function Apply({ searchParams }: { searchParams: Promise<{ 
         <h1 className="font-display text-5xl uppercase leading-none">Thanks for applying</h1>
         <p className="mx-auto mt-5 max-w-md text-lg text-mute">
           I&apos;ll read your application and get back to you personally by email{" "}
-          <span className="whitespace-nowrap">(or phone, if you gave your number)</span>.
+          <span className="whitespace-nowrap">(or on Instagram, if you gave your username)</span>.
         </p>
         <Link href="/" className="mt-8 inline-flex min-h-12 items-center rounded-xl border border-line px-5 font-semibold">
           Back to the home page
@@ -54,8 +54,16 @@ export default async function Apply({ searchParams }: { searchParams: Promise<{ 
             <Field label="Email">
               <input className="field" name="email" type="email" autoComplete="email" required maxLength={200} />
             </Field>
-            <Field label="Phone or WhatsApp (optional)" hint="Only if you'd like a quick chat.">
-              <input className="field" name="phone" type="tel" autoComplete="tel" inputMode="tel" maxLength={30} />
+            <Field label="Instagram (optional)" hint="Your username, if you'd rather chat there.">
+              <input
+                className="field"
+                name="instagram"
+                placeholder="@yourname"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                maxLength={80}
+              />
             </Field>
           </Card>
 

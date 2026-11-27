@@ -41,7 +41,7 @@ try {
 async function fillApplication(page, who) {
   await page.getByLabel("Your name").fill(who.name);
   await page.getByLabel("Email").fill(who.email);
-  if (who.phone) await page.getByLabel("Phone or WhatsApp (optional)").fill(who.phone);
+  if (who.instagram) await page.getByLabel("Instagram (optional)").fill(who.instagram);
   const pick = (name, value) => page.locator(`label:has(input[name="${name}"][value="${value}"])`).click();
   await pick("goal", "muscle");
   await page.getByLabel("Tell me about your goals").fill(who.about ?? "Want to get in better shape");
@@ -388,7 +388,7 @@ try {
   });
 
   await step("Visitor applies on the site; coach reviews, accepts and invites; they sign up with their application attached", async () => {
-    const C = { name: `Charlie Lead ${run}`, email: `charlie.${run}@test.coachedbyabz.com`, password: "charlie-password-123", phone: "07700 9001x", about: `Want to add size before summer ${run}`, injuries: "Old knee injury, fine now" };
+    const C = { name: `Charlie Lead ${run}`, email: `charlie.${run}@test.coachedbyabz.com`, password: "charlie-password-123", instagram: "charlie lifts!", about: `Want to add size before summer ${run}`, injuries: "Old knee injury, fine now" };
     clients.C = C;
     const v = await (await phone()).newPage();
     await v.goto("/");
@@ -397,13 +397,14 @@ try {
     assert.equal(await v.getByText("Health check").count(), 0, "no health questions on the form");
     await fillApplication(v, C);
     await v.getByRole("button", { name: "Send application" }).click();
-    await v.getByText("Check your phone number.").waitFor();
+    await v.getByText("Check your Instagram username.").waitFor();
     assert.equal(await v.getByLabel("Your name").inputValue(), C.name, "answers kept after an error");
-    await v.getByLabel("Phone or WhatsApp (optional)").fill("07700 900123");
+    assert.equal(await v.getByLabel("Phone or WhatsApp (optional)").count(), 0, "no phone/WhatsApp field");
+    await v.getByLabel("Instagram (optional)").fill("https://www.instagram.com/Charlie_Lifts/?hl=en");
     await v.getByRole("button", { name: "Send application" }).click();
     await v.getByRole("heading", { name: "Thanks for applying" }).waitFor();
     const lead = await db.lead.findFirst({ where: { email: C.email } });
-    assert.ok(lead && lead.status === "NEW" && lead.injuries === C.injuries && Object.keys(lead.health).length === 0 && lead.consentAt, "application stored");
+    assert.ok(lead && lead.status === "NEW" && lead.injuries === C.injuries && lead.instagram === "charlie_lifts" && Object.keys(lead.health).length === 0 && lead.consentAt, "application stored");
     leadId = lead.id;
     const note = mailsTo(COACH_EMAIL).at(-1);
     assert.equal(note.subject, `New application from ${C.name}`);
@@ -425,7 +426,8 @@ try {
     await coach.getByRole("link", { name: new RegExp(C.name) }).click();
     await coach.getByText("Old knee injury, fine now").waitFor();
     assert.equal(await coach.getByText("Health check").count(), 0, "no health section for new applications");
-    assert.equal(await coach.getByRole("link", { name: "WhatsApp" }).getAttribute("href"), "https://wa.me/447700900123");
+    assert.equal(await coach.getByRole("link", { name: "Instagram", exact: true }).getAttribute("href"), "https://www.instagram.com/charlie_lifts/");
+    assert.equal(await coach.getByRole("link", { name: "WhatsApp" }).count(), 0, "no WhatsApp button");
     await coach.getByRole("button", { name: "Contacted", exact: true }).click();
     await coach.getByRole("button", { name: "Contacted", exact: true, pressed: true }).waitFor();
     assert.equal((await db.lead.findUnique({ where: { id: leadId } })).status, "CONTACTED");

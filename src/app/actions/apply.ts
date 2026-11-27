@@ -28,8 +28,14 @@ export async function submitApplicationAction(_: FormState, fd: FormData): Promi
     if (!name) throw new InputError("Enter your name.");
     const email = text(fd, "email", 200).toLowerCase();
     if (!z.string().email().safeParse(email).success) throw new InputError("Enter a valid email address.");
-    const phone = text(fd, "phone", 30);
-    if (phone && !/^[+\d][\d\s()-]{6,}$/.test(phone)) throw new InputError("Check your phone number.");
+    // Accepts "@name", "name" or a profile link; stores just the username.
+    const igRaw = text(fd, "instagram", 80)
+      .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "")
+      .replace(/[/?#].*$/, "")
+      .replace(/^@/, "")
+      .trim();
+    if (igRaw && !/^(?!.*\.\.)[A-Za-z0-9._]{1,30}$/.test(igRaw)) throw new InputError("Check your Instagram username.");
+    const instagram = igRaw.toLowerCase();
     const goal = oneOf(fd, "goal", GOALS, "Choose your main goal.");
     const experience = oneOf(fd, "experience", EXPERIENCE, "Choose your training experience.");
     const trainsAt = oneOf(fd, "trainsAt", TRAINS_AT, "Choose where you'll train.");
@@ -51,7 +57,7 @@ export async function submitApplicationAction(_: FormState, fd: FormData): Promi
         coachId: coach.id,
         name,
         email,
-        phone,
+        instagram,
         goal,
         experience,
         daysPerWeek,

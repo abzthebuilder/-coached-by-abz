@@ -8,16 +8,6 @@ import { LinkActionForm } from "@/components/invite-form";
 import { ActionForm, SubmitButton } from "@/components/form";
 import { Badge, Card, CardTitle, cx } from "@/components/ui";
 
-/** wa.me needs the number in international format without "+". UK mobiles starting 07 become 447… */
-function whatsappNumber(phone: string): string | null {
-  const t = phone.trim();
-  const digits = t.replace(/\D/g, "");
-  if (t.startsWith("+")) return digits.length >= 8 ? digits : null;
-  if (digits.startsWith("07") && digits.length === 11) return `44${digits.slice(1)}`;
-  if (digits.startsWith("44") && digits.length >= 11) return digits;
-  return null;
-}
-
 const STATUS = { NEW: "New", CONTACTED: "Contacted", ACCEPTED: "Accepted", DECLINED: "Declined" } as const;
 
 export default async function LeadPage({ params }: { params: Promise<{ id: string }> }) {
@@ -25,7 +15,6 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const lead = await db.lead.findFirst({ where: { id, coachId: coach.id } });
   if (!lead) notFound();
-  const wa = lead.phone ? whatsappNumber(lead.phone) : null;
   const first = lead.name.split(" ")[0];
   const statusButton = (status: "NEW" | "CONTACTED" | "DECLINED", label: string) => (
     <form action={setLeadStatusAction}>
@@ -54,7 +43,8 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
           <h1 className="font-display text-4xl uppercase leading-none sm:text-5xl">{lead.name}</h1>
           <div className="mt-1 text-sm text-mute">
             {lead.email}
-            {lead.phone && ` · ${lead.phone}`}
+            {lead.instagram && ` · @${lead.instagram}`}
+            {!lead.instagram && lead.phone && ` · ${lead.phone}`}
           </div>
         </div>
         <Badge tone={lead.status === "NEW" ? "good" : lead.status === "DECLINED" ? "neutral" : "gold"}>{STATUS[lead.status]}</Badge>
@@ -76,21 +66,21 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
               >
                 Email
               </a>
-              {wa ? (
+              {lead.instagram ? (
                 <a
-                  href={`https://wa.me/${wa}`}
+                  href={`https://www.instagram.com/${lead.instagram}/`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex min-h-12 items-center justify-center rounded-xl border border-line font-semibold"
                 >
-                  WhatsApp
+                  Instagram
                 </a>
               ) : lead.phone ? (
                 <a href={`tel:${lead.phone.replace(/[^\d+]/g, "")}`} className="flex min-h-12 items-center justify-center rounded-xl border border-line font-semibold">
                   Call
                 </a>
               ) : (
-                <span className="flex min-h-12 items-center justify-center rounded-xl border border-line/50 text-sm text-faint">No phone given</span>
+                <span className="flex min-h-12 items-center justify-center rounded-xl border border-line/50 text-sm text-faint">No Instagram given</span>
               )}
             </div>
           </Card>
