@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { calculateMacros } from "@/lib/macros";
 import { checkInStatus } from "@/lib/checkin-schedule";
 import { weekSummary, adherence, targetOn, type DayPoint } from "@/lib/metrics";
@@ -134,5 +134,31 @@ describe("phone notification signing", () => {
     expect(vapidPairMatches({ publicKey: a.publicKey + "\n", privateKey: ` ${a.privateKey}` })).toBe(true);
     expect(vapidPairMatches({ publicKey: a.publicKey, privateKey: b.privateKey })).toBe(false);
     expect(vapidPairMatches({ publicKey: "junk", privateKey: "junk" })).toBe(false);
+  });
+});
+
+describe("email settings check", () => {
+  it("accepts the usual Railway values, even with stray quotes or spaces", async () => {
+    const { emailSetup } = await import("@/lib/email");
+    vi.stubEnv("RESEND_API_KEY", " re_abc123 \n");
+    vi.stubEnv("EMAIL_FROM", '"Coached by ABZ <coach@coachedbyabz.com>"');
+    vi.stubEnv("EMAIL_REPLY_TO", "owner@example.com");
+    expect(emailSetup()).toEqual({ on: true, from: "Coached by ABZ <coach@coachedbyabz.com>", replyTo: "owner@example.com", problems: [] });
+    vi.unstubAllEnvs();
+  });
+
+  it("explains common mistakes", async () => {
+    const { emailSetup } = await import("@/lib/email");
+    vi.stubEnv("RESEND_API_KEY", "abc");
+    vi.stubEnv("EMAIL_FROM", "Coached by ABZ");
+    vi.stubEnv("EMAIL_REPLY_TO", "");
+    const s = emailSetup();
+    expect(s.problems).toHaveLength(2);
+    expect(s.problems[0]).toMatch(/start with re_/);
+    expect(s.problems[1]).toMatch(/Coached by ABZ <coach@coachedbyabz.com>/);
+    vi.stubEnv("RESEND_API_KEY", "");
+    vi.stubEnv("EMAIL_FROM", "");
+    expect(emailSetup()).toMatchObject({ on: false });
+    vi.unstubAllEnvs();
   });
 });

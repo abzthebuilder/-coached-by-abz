@@ -717,6 +717,16 @@ try {
     await oldKey.close();
   });
 
+  await step("Coach sends a test email from Settings", async () => {
+    await coach.goto("/coach/settings");
+    await coach.getByRole("heading", { name: "Emails" }).waitFor();
+    await coach.getByRole("button", { name: "Send me a test email" }).click();
+    await coach.getByText(`Sent to ${COACH_EMAIL}.`).waitFor();
+    const mail = mailsTo(COACH_EMAIL).find((m) => m.subject === "Test email from Coached by ABZ");
+    assert.ok(mail, "test email sent to the coach");
+    assert.match(linkIn(mail), /\/coach$/);
+  });
+
   await step("Isolation: client B cannot see or touch client A's records or photos", async () => {
     const photo = await db.progressPhoto.findFirst({ where: { clientId: profA.id } });
     const ci = await db.checkIn.findFirst({ where: { clientId: profA.id } });

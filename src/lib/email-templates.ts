@@ -47,6 +47,11 @@ export const emails = {
     layout(to, `${clientName} replied to your message`, [`${clientName} has replied on their check-in.`], { label: "Open conversation", url: link }),
   newLead: (to: string, applicantName: string, link: string) =>
     layout(to, `New application from ${applicantName}`, [`${applicantName} has applied for online coaching.`], { label: "Open application", url: link }),
+  test: (to: string, link: string) =>
+    layout(to, "Test email from Coached by ABZ", ["Emails from your website are working.", "Invites, password resets, check-in reminders and replies will now arrive by email."], {
+      label: "Open my dashboard",
+      url: link,
+    }),
   reminder: (to: string, name: string, link: string) =>
     layout(
       to,
