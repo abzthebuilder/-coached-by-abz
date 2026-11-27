@@ -2,6 +2,9 @@ import "server-only";
 import { db } from "./db";
 import type { CurrentUser } from "./auth";
 import { REACTIONS } from "@/content/community";
+import crypto from "node:crypto";
+import sharp from "sharp";
+import { deleteObject, putObject, sniffImage } from "./storage";
 
 export type ChatMessage = {
   id: string;
@@ -11,6 +14,7 @@ export type ChatMessage = {
   authorIsCoach: boolean;
   mine: boolean;
   pinned: boolean;
+  image: { url: string; w: number | null; h: number | null } | null;
   reactions: { emoji: string; count: number; mine: boolean }[];
   reports?: number; // coach only
 };
@@ -64,6 +68,7 @@ function toChat(m: Row, viewerId: string, isCoach: boolean): ChatMessage {
     authorIsCoach: m.author.role === "COACH",
     mine: m.author.id === viewerId,
     pinned: !!m.pinnedAt,
+    image: m.imageKey ? { url: `/api/community/photos/${m.id}`, w: m.imageW, h: m.imageH } : null,
     reactions: REACTIONS.filter((e) => counts.has(e)).map((e) => ({ emoji: e, ...counts.get(e)! })),
     ...(isCoach ? { reports: m._count.reports } : {}),
   };
@@ -131,4 +136,32 @@ export function defaultDisplayName(name: string) {
   const [first, ...rest] = name.trim().split(/\s+/);
   const last = rest.pop();
   return last ? `${first} ${last[0].toUpperCase()}.` : first;
+}
+
+export class PhotoError extends Error {}
+
+/**
+ * Checks a community photo is a real image, then re-saves it: turned the right way up, at most 1600 px,
+ * as JPEG, with all hidden details (location, camera, date) removed. Stored privately.
+ */
+export async function storeCommunityPhoto(coachId: string, file: File) {
+  if (file.size > 12 * 1024 * 1024) throw new PhotoError("That photo is too big. Try a smaller one.");
+  const buf = Buffer.from(await file.arrayBuffer());
+  if (!sniffImage(buf)) throw new PhotoError("Send a JPG, PNG or WebP photo.");
+  const out = await sharp(buf, { failOn: "error" })
+    .rotate()
+    .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 80, mozjpeg: true })
+    .toBuffer({ resolveWithObject: true })
+    .catch(() => {
+      throw new PhotoError("That photo couldn't be opened. Try a different one.");
+    });
+  const key = `community/${coachId}/${crypto.randomUUID()}.jpg`;
+  await putObject(key, out.data, "image/jpeg");
+  return { key, w: out.info.width, h: out.info.height };
+}
+
+/** Deletes the stored photo files of the given messages (call before or after deleting the rows). */
+export async function deleteCommunityPhotos(keys: (string | null)[]) {
+  for (const k of keys) if (k) await deleteObject(k);
 }

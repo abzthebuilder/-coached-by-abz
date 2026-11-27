@@ -10,6 +10,7 @@ export const COMMUNITY_RULES = [
   "Keep the chat private: don't share screenshots or other people's details.",
   "No selling, spam or promoting other businesses.",
   "Everyone in the community can see what you post, so think before sharing personal details.",
+  "Only post photos you're happy for every member to see, and never photos of other people without their OK.",
   "ABZ can delete messages and remove anyone who breaks these rules.",
 ];
 

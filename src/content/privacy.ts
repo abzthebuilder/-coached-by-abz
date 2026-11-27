@@ -20,7 +20,7 @@ export const privacySections: PrivacySection[] = [
       "When you apply: what you enter in the application form, such as your name, email, Instagram username (if you give it), goals, training history and anything you tell me about injuries.",
       "When you become a client: your name, email address and timezone, plus a password. Your password is stored scrambled (hashed), so I can never see it.",
       "What you log in the app: body weight, body measurements, your food diary, calories and macros, steps, workouts (exercises, weights and reps), check-in answers (sleep, energy, how training and nutrition went, wins, struggles and questions) and progress photos.",
-      "If you join the community chat (optional): the name you choose, your messages, reactions and any messages you report.",
+      "If you join the community chat (optional): the name you choose, your messages and photos, reactions and any messages you report.",
       "What I add as your coach: your training plan, nutrition targets, tasks, replies to your check-ins and private notes to help me coach you.",
       "Technical information: one cookie that keeps you logged in, and basic server logs (such as IP addresses) that my hosting provider keeps for security.",
     ],
@@ -57,8 +57,9 @@ export const privacySections: PrivacySection[] = [
   {
     heading: "Community chat",
     paragraphs: [
-      "The community chat is optional. If you join, everyone in it (ABZ and other clients who've joined) can see the name you choose and what you post. Nothing else about you is shared: your logs, photos, check-ins and targets always stay private.",
-      "You can delete your own messages at any time. If you leave, your messages and reactions are deleted. ABZ can delete messages and remove members who break the community rules.",
+      "The community chat is optional. If you join, everyone in it (ABZ and other clients who've joined) can see the name you choose and what you post, including any photos. Nothing else about you is shared: your logs, progress photos, check-ins and targets always stay private.",
+      "Photos you post in the community are resized and have hidden details such as location removed before they're stored. They can only be seen by community members, not by anyone on the internet.",
+      "You can delete your own messages and photos at any time. If you leave, your messages, photos and reactions are deleted. ABZ can delete messages and remove members who break the community rules.",
     ],
   },
   {

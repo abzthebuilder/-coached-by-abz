@@ -456,7 +456,10 @@ model CommunityMessage {
   coach     User                @relation("CommunityOwner", fields: [coachId], references: [id], onDelete: Cascade)
   authorId  String
   author    User                @relation("CommunityAuthor", fields: [authorId], references: [id], onDelete: Cascade)
-  body      String
+  body      String // may be empty when there's a photo
+  imageKey  String? // private storage key of an attached photo
+  imageW    Int?
+  imageH    Int?
   pinnedAt  DateTime?
   createdAt DateTime            @default(now())
   reactions CommunityReaction[]

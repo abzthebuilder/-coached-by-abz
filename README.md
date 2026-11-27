@@ -60,10 +60,13 @@ Wording and questions: `src/content/apply.ts`.
 ## Community chat
 
 One optional group chat per coach (`/app/community`, `/coach/community`). Clients opt in, choose the
-name others see and agree to the rules (`src/content/community.ts`). Text messages, reactions, one
+name others see and agree to the rules (`src/content/community.ts`). Text and photo messages, reactions, one
 pinned message, unread badges; the chat refreshes every few seconds. Members can delete their own
 messages and report others'; the coach can delete any message, pin, review reports and remove or
 re-admit members. Leaving deletes the member's messages. Only members (and the coach) can read it.
+Photos are shrunk on the phone, then re-encoded on the server (max 1600 px JPEG, location/camera data
+removed), stored privately and served only to members via `/api/community/photos/[id]`; deleting a
+message, leaving, or deleting a client removes the files.
 
 ## Food diary
 

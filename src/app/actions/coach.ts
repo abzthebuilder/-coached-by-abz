@@ -367,12 +367,14 @@ export async function deleteClientAction(_: FormState, fd: FormData): Promise<Fo
   const { profile } = await requireCoachedClient(text(fd, "clientId", 64));
   if (text(fd, "confirm", 20) !== "DELETE") return { error: "Type DELETE in capitals to confirm." };
   const photos = await db.progressPhoto.findMany({ where: { clientId: profile.id }, select: { storageKey: true } });
+  const chatPhotos = await db.communityMessage.findMany({ where: { authorId: profile.userId, imageKey: { not: null } }, select: { imageKey: true } });
   await db.$transaction([
     db.authToken.deleteMany({ where: { OR: [{ email: profile.user.email }, { userId: profile.userId }] } }),
     // Deleting the user removes their profile, sessions, logs, check-ins, measurements, photo records and tasks.
     db.user.delete({ where: { id: profile.userId } }),
   ]);
   for (const ph of photos) await deleteObject(ph.storageKey);
+  for (const ph of chatPhotos) if (ph.imageKey) await deleteObject(ph.imageKey);
   revalidatePath("/coach", "layout");
   redirect(`/coach?deleted=${encodeURIComponent(profile.user.name)}`);
 }

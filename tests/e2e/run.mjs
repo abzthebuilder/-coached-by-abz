@@ -546,6 +546,54 @@ try {
     await coach.locator("li").filter({ hasText: bName }).getByRole("button", { name: "Remove" }).waitFor();
     assert.equal((await B.request.get("/api/community")).status(), 200, "allowed back");
 
+    // Photos: B posts one with a caption. Location data is stripped; only members and the coach can see it.
+    const sharp = require(path.resolve("node_modules/sharp"));
+    const jpegWithGps = await sharp({ create: { width: 2400, height: 1600, channels: 3, background: { r: 200, g: 160, b: 40 } } })
+      .jpeg()
+      .withExif({ IFD0: { Make: "TestPhone", Model: "X" }, IFD3: { GPSLatitudeRef: "N", GPSLatitude: "51/1 30/1 0/1", GPSLongitudeRef: "W", GPSLongitude: "0/1 7/1 0/1" } })
+      .toBuffer();
+    assert.ok((await sharp(jpegWithGps).metadata()).exif, "test photo starts with location data");
+    await B.goto("/app/community");
+    await B.locator('input[type="file"]').setInputFiles({ name: "gym.jpg", mimeType: "image/jpeg", buffer: jpegWithGps });
+    await B.getByAltText("Photo to send").waitFor();
+    await B.getByLabel("Message", { exact: true }).fill(`Leg day done ${run}`);
+    await B.getByRole("button", { name: "Send", exact: true }).click();
+    const photoImg = B.getByAltText(`Photo: Leg day done ${run}`);
+    await photoImg.waitFor();
+    const photoUrl = await photoImg.getAttribute("src");
+    const photoMsg = await db.communityMessage.findFirst({ where: { body: `Leg day done ${run}` } });
+    assert.ok(photoMsg.imageKey && photoMsg.imageW <= 1600 && photoMsg.imageH <= 1600, "photo stored and resized");
+    const served = await B.request.get(photoUrl);
+    assert.equal(served.status(), 200);
+    assert.equal(served.headers()["content-type"], "image/jpeg");
+    const meta = await sharp(await served.body()).metadata();
+    assert.ok(!meta.exif, "location and camera details removed");
+    assert.ok(meta.width <= 1600, "resized");
+    assert.equal((await coach.request.get(photoUrl)).status(), 200, "coach can see it");
+    assert.equal((await clients.C.page.request.get(photoUrl)).status(), 404, "non-member can't see the photo");
+    const anonPhoto = await browser.newContext({ baseURL: base });
+    assert.equal((await anonPhoto.request.get(photoUrl)).status(), 404, "logged-out can't see the photo");
+    await anonPhoto.close();
+    // Tap to view full size
+    await B.getByRole("button", { name: /Message from you/ }).last().click();
+    await B.getByRole("button", { name: "View photo" }).click();
+    await B.getByAltText("Full size photo").waitFor();
+    await B.getByRole("button", { name: "Close photo" }).click();
+    // A file that isn't a photo is refused
+    await B.locator('input[type="file"]').setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("not a photo") });
+    await B.getByAltText("Photo to send").waitFor();
+    await B.getByRole("button", { name: "Send", exact: true }).click();
+    await B.getByText("Send a JPG, PNG or WebP photo.").waitFor();
+    await B.getByRole("button", { name: "Remove photo" }).click();
+    // Deleting the message deletes the photo file
+    const photoPath = path.join(storageRoot, photoMsg.imageKey);
+    assert.ok(fs.existsSync(photoPath), "photo file stored");
+    B.once("dialog", (d) => d.accept());
+    await B.getByRole("button", { name: /Message from you/ }).last().click();
+    await B.getByRole("button", { name: "Delete", exact: true }).click();
+    await until(async () => !fs.existsSync(photoPath));
+    assert.equal((await B.request.get(photoUrl)).status(), 404);
+
     // A client who never joined can't read it
     assert.equal((await clients.C.page.request.get("/api/community")).status(), 404, "non-member can't read");
 

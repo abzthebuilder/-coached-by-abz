@@ -119,7 +119,7 @@ export async function buildClientExport(clientId: string): Promise<{ zip: Uint8A
       ? {
           displayName: communityMember.displayName,
           joinedAt: communityMember.joinedAt,
-          messages: communityMessages.map((m) => ({ at: m.createdAt, message: m.body })),
+          messages: communityMessages.map((m) => ({ at: m.createdAt, message: m.body, photo: m.imageKey ? `community-photos/${m.id}.jpg` : null })),
         }
       : null,
     foodDiary: p.foodEntries.map(({ day, meal, name, brand, amount, unit, kcal, proteinG, carbsG, fatG }) => ({ day, meal, name, brand, amount, unit, kcal, proteinG, carbsG, fatG })),
@@ -158,13 +158,24 @@ export async function buildClientExport(clientId: string): Promise<{ zip: Uint8A
     ),
     "measurements.csv": strToU8(csv([["day", "chest_cm", "waist_cm", "hips_cm", "arm_cm", "thigh_cm", "neck_cm", "notes"], ...data.measurements.map((m) => [m.day, m.chestCm, m.waistCm, m.hipsCm, m.armCm, m.thighCm, m.neckCm, m.notes])])),
     ...photoFiles,
+    ...(await communityPhotoFiles(communityMessages)),
   };
   // Photos are already compressed, so store them as-is; compress the text files.
   const zip = zipSync(
-    Object.fromEntries(Object.entries(files).map(([k, v]) => [k, [v, { level: k.startsWith("photos/") ? 0 : 6 }]])) as Parameters<typeof zipSync>[0],
+    Object.fromEntries(Object.entries(files).map(([k, v]) => [k, [v, { level: k.startsWith("photos/") || k.startsWith("community-photos/") ? 0 : 6 }]])) as Parameters<typeof zipSync>[0],
   );
   const slug = p.user.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "client";
   return { zip, filename: `coached-by-abz-${slug}-${exportedAt.slice(0, 10)}.zip` };
+}
+
+async function communityPhotoFiles(messages: { id: string; imageKey: string | null }[]) {
+  const files: Record<string, Uint8Array> = {};
+  for (const m of messages) {
+    if (!m.imageKey) continue;
+    const bytes = await getObject(m.imageKey);
+    if (bytes) files[`community-photos/${m.id}.jpg`] = new Uint8Array(bytes);
+  }
+  return files;
 }
 
 export function zipResponse({ zip, filename }: { zip: Uint8Array; filename: string }) {

@@ -3,7 +3,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireCoach, requireClient, requireUser } from "@/lib/auth";
-import { communityFor, postingTooFast } from "@/lib/community";
+import { communityFor, deleteCommunityPhotos, PhotoError, postingTooFast, storeCommunityPhoto } from "@/lib/community";
+import { storageProblem } from "@/lib/storage";
 import { text } from "@/lib/parse";
 import { REACTIONS } from "@/content/community";
 import type { FormState } from "@/components/form";
@@ -54,25 +55,44 @@ export async function leaveCommunityAction() {
   const { user } = await requireClient();
   const member = await db.communityMember.findUnique({ where: { userId: user.id } });
   if (member && !member.removedAt) {
+    const photos = await db.communityMessage.findMany({ where: { authorId: user.id, imageKey: { not: null } }, select: { imageKey: true } });
     await db.$transaction([
       db.communityMessage.deleteMany({ where: { authorId: user.id } }),
       db.communityReaction.deleteMany({ where: { userId: user.id } }),
       db.communityReport.deleteMany({ where: { reporterId: user.id } }),
       db.communityMember.delete({ where: { id: member.id } }),
     ]);
+    await deleteCommunityPhotos(photos.map((p) => p.imageKey));
   }
   revalidatePath("/app", "layout");
   redirect("/app/community?left=1");
 }
 
-export async function postMessageAction(body: string): Promise<Result> {
+/** Posts a message: text, a photo, or both. */
+export async function postMessageAction(fd: FormData): Promise<Result> {
   const m = await memberContext();
   if (!m) return no("You're not in the community.");
-  const clean = String(body ?? "").replace(/\r\n/g, "\n").trim();
-  if (!clean) return no("Write a message first.");
+  const clean = String(fd.get("body") ?? "").replace(/\r\n/g, "\n").trim();
+  const photo = fd.get("photo");
+  const file = photo instanceof File && photo.size > 0 ? photo : null;
+  if (!clean && !file) return no("Write a message first.");
   if (clean.length > 1000) return no("Keep messages under 1,000 characters.");
   if (postingTooFast(m.user.id)) return no("Slow down a little, then try again.");
-  await db.communityMessage.create({ data: { coachId: m.ctx.coachId, authorId: m.user.id, body: clean } });
+  let image: { key: string; w: number; h: number } | null = null;
+  if (file) {
+    const problem = storageProblem();
+    if (problem) return no(problem);
+    try {
+      image = await storeCommunityPhoto(m.ctx.coachId, file);
+    } catch (e) {
+      if (e instanceof PhotoError) return no(e.message);
+      console.error(e);
+      return no("That photo couldn't be sent. Try again.");
+    }
+  }
+  await db.communityMessage.create({
+    data: { coachId: m.ctx.coachId, authorId: m.user.id, body: clean, imageKey: image?.key, imageW: image?.w, imageH: image?.h },
+  });
   return { ok: true };
 }
 
@@ -81,8 +101,11 @@ export async function deleteMessageAction(id: string): Promise<Result> {
   const m = await memberContext();
   if (!m) return no("You're not in the community.");
   const where = m.ctx.isCoach ? { id: String(id), coachId: m.ctx.coachId } : { id: String(id), coachId: m.ctx.coachId, authorId: m.user.id };
-  const res = await db.communityMessage.deleteMany({ where });
-  return res.count ? { ok: true } : no("Message not found.");
+  const msg = await db.communityMessage.findFirst({ where });
+  if (!msg) return no("Message not found.");
+  await db.communityMessage.delete({ where: { id: msg.id } });
+  await deleteCommunityPhotos([msg.imageKey]);
+  return { ok: true };
 }
 
 export async function toggleReactionAction(id: string, emoji: string): Promise<Result> {
@@ -132,7 +155,11 @@ export async function dismissReportsAction(fd: FormData) {
 
 export async function deleteReportedMessageAction(fd: FormData) {
   const coach = await requireCoach();
-  await db.communityMessage.deleteMany({ where: { id: text(fd, "id", 64), coachId: coach.id } });
+  const msg = await db.communityMessage.findFirst({ where: { id: text(fd, "id", 64), coachId: coach.id } });
+  if (msg) {
+    await db.communityMessage.delete({ where: { id: msg.id } });
+    await deleteCommunityPhotos([msg.imageKey]);
+  }
   revalidatePath("/coach/community");
 }
 
